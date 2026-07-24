@@ -1,7 +1,8 @@
 <script setup lang="ts">
+const router = useRouter()
 const toast = useToast()
 const api = useApi()
-const { activeAccount } = useAccounts()
+const { activeAccount, removeAccount, accounts } = useAccounts()
 const { isSupported, isSubscribed, permission, requestPermission, unsubscribe } = usePushNotifications()
 
 const accountState = reactive({
@@ -12,6 +13,15 @@ const accountState = reactive({
 const saving = ref(false)
 const avatarInput = ref<HTMLInputElement | null>(null)
 const uploadingAvatar = ref(false)
+
+const serverVersion = ref<string | null>(null)
+
+try {
+  const v = await api.getVersion()
+  serverVersion.value = v.version
+} catch {
+  // ignore
+}
 
 const isPushGranted = computed(() => permission.value === 'granted' && isSubscribed.value)
 const isPushDenied = computed(() => permission.value === 'denied')
@@ -71,10 +81,21 @@ async function disableNotifications() {
   toast.add({ title: 'Notifications disabled', color: 'success' })
 }
 
-const tabs = [
+function disconnectAccount() {
+  if (!activeAccount.value) return
+  removeAccount(activeAccount.value.id)
+  if (accounts.value.length === 0) {
+    router.push('/login')
+  } else {
+    router.push('/')
+  }
+}
+
+const tabs = computed(() => [
   {
     slot: 'account',
-    label: 'Account'
+    label: 'Account',
+    avatar: { src: activeAccount.value?.user?.avatarUrl || undefined, alt: activeAccount.value?.user?.name }
   },
   {
     slot: 'notifications',
@@ -91,7 +112,7 @@ const tabs = [
     label: 'Help',
     icon: 'i-lucide-circle-help'
   }
-]
+])
 </script>
 
 <template>
@@ -228,12 +249,52 @@ const tabs = [
       </template>
 
       <template #help>
-        <div class="my-4 space-y-4">
-          <p class="text-sm text-muted">
-            Collct is a self-hosted photo sharing platform for friends and family.
-          </p>
-          <div class="text-sm text-muted space-y-2">
-            <p>Visit your server's documentation for help with your Collct instance.</p>
+        <div class="my-4 space-y-6">
+          <div class="space-y-1">
+            <p class="text-sm text-muted">
+              Collct is a self-hosted photo sharing platform for friends and family. No algorithm. No tracking. No strangers.
+            </p>
+            <p class="text-xs text-muted">
+              Your photos and data live on your server. Nothing is sent to third parties.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted">Version</span>
+              <span>{{ serverVersion ?? 'Unknown' }}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted">Server</span>
+              <span class="truncate max-w-[200px]">{{ activeAccount?.serverUrl }}</span>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <UButton
+              label="Report an issue"
+              icon="i-lucide-flag"
+              variant="outline"
+              block
+              to="https://github.com/jackgraddon/collcting/issues/new"
+              target="_blank"
+            />
+            <UButton
+              label="Source code"
+              icon="i-lucide-github"
+              variant="outline"
+              block
+              to="https://github.com/jackgraddon/collcting"
+              target="_blank"
+            />
+            <UButton
+              label="Disconnect account"
+              icon="i-lucide-log-out"
+              color="error"
+              variant="ghost"
+              block
+              @click="disconnectAccount"
+            />
           </div>
         </div>
       </template>
