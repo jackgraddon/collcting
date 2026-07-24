@@ -1,9 +1,9 @@
 <template>
   <UHeader
     class="border-b-0"
-    mode="slideover"
+    :toggle="false"
   >
-    <template #left>
+    <template #title>
       <NuxtLink
         to="/"
         class="flex items-center gap-2 text-lg font-bold"
@@ -17,31 +17,30 @@
         />
         <span>Collct<span class="text-primary">ing</span></span>
       </NuxtLink>
-      <UNavigationMenu
-        :items="items"
-        variant="link"
-      />
     </template>
+
+    <UNavigationMenu
+      :items="items"
+      variant="link"
+      class="hidden lg:flex"
+    />
+
     <template #right>
       <CollctNotificationBell />
       <UButton
         label="Post"
         icon="i-solar-add-circle-linear"
-        @click="() => { uploadModal = true }"
+        class="hidden lg:flex"
+        @click="uploadModal.openModal()"
       />
-      <CollctAccountSwitcher />
-      <UColorModeButton />
-    </template>
-    <template #body>
-      <UNavigationMenu
-        :items="items"
-        orientation="vertical"
-      />
+      <div class="hidden lg:block">
+        <CollctAccountSwitcher />
+      </div>
     </template>
   </UHeader>
 
   <CollctUploadModal
-    v-model:open="uploadModal"
+    v-model:open="uploadModal.open.value"
     @uploaded="onUploaded"
   />
 </template>
@@ -51,8 +50,7 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
 const { emit } = useUploadBus()
-
-const uploadModal = ref(false)
+const uploadModal = useUploadModal()
 
 const items = computed<NavigationMenuItem[]>(() => [
   {
@@ -76,7 +74,7 @@ const items = computed<NavigationMenuItem[]>(() => [
 ])
 
 function onUploaded(post: PostData) {
-  uploadModal.value = false
+  uploadModal.closeModal()
   emit(post)
 }
 </script>

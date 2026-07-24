@@ -17,8 +17,10 @@ useSeoMeta({
   <UApp>
     <CollctHeader />
 
-    <UMain>
+    <UMain class="pb-14 lg:pb-0">
       <NuxtPage :keepalive="{ max: 10, exclude: ['login', 'settings', 'account'] }" />
     </UMain>
+
+    <CollctBottomNav />
   </UApp>
 </template>

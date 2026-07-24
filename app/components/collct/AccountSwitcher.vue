@@ -2,7 +2,7 @@
 const { accounts, activeAccount, switchAccount } = useAccounts()
 const router = useRouter()
 
-const open = ref(false)
+const open = ref<boolean>(false)
 
 function handleSwitch(id: string) {
   switchAccount(id)
@@ -13,6 +13,11 @@ function handleSwitch(id: string) {
 function goToAddAccount() {
   open.value = false
   router.push('/login')
+}
+
+function goToManageAccounts() {
+  open.value = false
+  router.push('/settings/accounts')
 }
 </script>
 
@@ -29,7 +34,7 @@ function goToAddAccount() {
       })),
       { type: 'separator' },
       { label: 'Add account', icon: 'solar:add-circle-linear', onSelect: goToAddAccount },
-      { label: 'Manage accounts', icon: 'solar:settings-linear', onSelect: () => { open.value = false; router.push('/settings/accounts') } }
+      { label: 'Manage accounts', icon: 'solar:settings-linear', onSelect: goToManageAccounts }
     ]"
     :content="{ align: 'start' }"
   >
