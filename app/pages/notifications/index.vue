@@ -98,7 +98,7 @@ function formatRelativeTime(date: string): string {
         <UButton
           color="neutral"
           variant="ghost"
-          icon="i-lucide-arrow-left"
+          icon="solar:arrow-left-linear"
           size="sm"
           @click="router.back()"
         />

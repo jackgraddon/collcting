@@ -267,7 +267,7 @@ onUnmounted(() => {
             <UButton
               color="neutral"
               variant="ghost"
-              icon="solar:alt-arrow-left-linear"
+              icon="solar:arrow-left-linear"
               size="sm"
               @click="goBack"
             />

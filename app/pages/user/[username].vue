@@ -47,6 +47,14 @@ function lighten(hex: string | null | undefined, amount = 0.85): string {
 
 <template>
   <UContainer class="py-10 max-w-4xl">
+    <UButton
+      icon="solar:arrow-left-linear"
+      color="neutral"
+      variant="ghost"
+      size="sm"
+      class="mb-4 -ml-2"
+      @click="$router.back()"
+    />
     <div
       v-if="profileStatus === 'pending'"
       class="space-y-6"
