@@ -105,7 +105,7 @@ async function upload() {
 <template>
   <UModal
     :open="props.open"
-    :ui="{ content: 'flex flex-col h-full max-h-[100dvh] md:max-h-[85vh]' }"
+    :ui="{ content: 'flex flex-col h-full max-h-[100dvh] m-0 rounded-none md:m-auto md:max-h-[85vh] md:rounded-xl' }"
     @update:open="emit('update:open', $event)"
   >
     <template #content>
@@ -215,6 +215,7 @@ async function upload() {
             placeholder="Add a caption..."
             :rows="3"
             :maxlength="500"
+            class="w-full"
           />
           <p class="text-xs text-muted text-right -mt-2">
             {{ caption.length }} / 500
