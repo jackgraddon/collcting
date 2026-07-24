@@ -276,7 +276,7 @@ function totalReactions(counts: ReactionCounts) {
           </div>
 
           <template v-if="editingCommentId !== comment.id">
-            <p class="text-sm text-default mt-0.5 break-words">
+            <p class="text-sm text-default mt-0.5 break-words selectable">
               {{ comment.body }}
             </p>
 

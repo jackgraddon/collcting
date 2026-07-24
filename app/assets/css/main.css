@@ -68,6 +68,11 @@
 }
 
 @layer base {
+  * {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
   h1 { @apply text-4xl font-bold; }
   h2 { @apply text-3xl font-semibold; }
   h3 { @apply text-2xl font-semibold; }
@@ -75,6 +80,11 @@
 
   a, button, [role="button"] {
     cursor: pointer;
+  }
+
+  .selectable {
+    user-select: text;
+    -webkit-user-select: text;
   }
 }
 

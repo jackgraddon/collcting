@@ -319,7 +319,7 @@ onUnmounted(() => {
             <template v-if="!editingCaption">
               <p
                 v-if="post.caption"
-                class="text-base text-default whitespace-pre-wrap"
+                class="text-base text-default whitespace-pre-wrap selectable"
               >
                 {{ post.caption }}
               </p>
