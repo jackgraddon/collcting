@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Server issue
+    url: https://github.com/jackgraddon/collct/issues
+    about: For bugs or feature requests related to the Collct server, open an issue there instead.
