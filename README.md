@@ -4,6 +4,10 @@ A self-hosted, privacy-first photo sharing PWA for friends and family. Connects 
 
 No algorithm. No tracking. No strangers.
 
+## Public, Free, Forever
+
+You can use the [publicly hosted insance of this client](https://collct.ing) to connect to any [Collct](https://github.com/jackgraddon/collct) servers. If you want more control, you can host it yourself if you'd like!
+
 ## Features
 
 - **Multi-account** — switch between servers and accounts
