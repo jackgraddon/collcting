@@ -6,9 +6,16 @@
     <template #left>
       <NuxtLink
         to="/"
-        class="text-lg font-bold"
+        class="flex items-center gap-2 text-lg font-bold"
       >
-        Collct
+        <NuxtImg
+          src="/app-icon-clear.png"
+          alt="Collct"
+          width="28"
+          height="28"
+          class="rounded-lg"
+        />
+        <span>Collct<span class="text-primary">ing</span></span>
       </NuxtLink>
       <UNavigationMenu
         :items="items"
