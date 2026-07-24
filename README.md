@@ -7,11 +7,10 @@ No algorithm. No tracking. No strangers.
 ## Features
 
 - **Multi-account** — switch between servers and accounts
-- **Browser auth** — sign in with passkeys, no API token required
+- **Browser auth** — sign in with passkeys
 - **PWA** — installable on iOS, Android, and desktop
 - **Push notifications** — get alerted for likes, comments, and group joins
-- **Photo groups** — control who sees your photos
-- **Dark mode** — built-in light/dark theme
+- **Supports all Collct features**
 
 ## Getting Started
 
