@@ -87,6 +87,33 @@ export function useAccounts() {
     }
   }
 
+  async function requestAuthorization(serverUrl: string, appName = 'Collct') {
+    return $fetch<{
+      authorize_url: string
+      code: string
+      state?: string
+    }>('/api/auth/authorize', {
+      baseURL: serverUrl,
+      method: 'post',
+      body: {
+        redirect_uri: window.location.origin,
+        app_name: appName
+      }
+    })
+  }
+
+  async function exchangeToken(serverUrl: string, code: string) {
+    return $fetch<{
+      access_token: string
+      token_type: string
+      expires_in: number | null
+    }>('/api/auth/token', {
+      baseURL: serverUrl,
+      method: 'post',
+      body: { code }
+    })
+  }
+
   // Load on first use
   load()
 
@@ -99,6 +126,8 @@ export function useAccounts() {
     removeAccount,
     updateAccount,
     switchAccount,
-    testConnection
+    testConnection,
+    requestAuthorization,
+    exchangeToken
   }
 }
