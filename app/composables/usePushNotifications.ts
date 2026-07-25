@@ -55,14 +55,20 @@ export function usePushNotifications() {
   }
 
   async function requestPermission() {
-    if (!isSupported.value || !vapidKey.value) return false
+    if (!isSupported.value) return false
 
     const result = await Notification.requestPermission()
     permission.value = result
 
     if (result === 'granted') {
-      await subscribe()
-      return true
+      if (!vapidKey.value) {
+        vapidKey.value = await fetchVapidKey()
+      }
+      if (vapidKey.value) {
+        await subscribe()
+        return true
+      }
+      return false
     }
 
     return false
