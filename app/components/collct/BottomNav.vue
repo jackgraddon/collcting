@@ -18,7 +18,7 @@ function goTo(path: string) {
 </script>
 
 <template>
-  <nav class="fixed bottom-0 inset-x-0 z-50 lg:hidden border-t border-muted bg-[var(--ui-bg)] pb-[env(safe-area-inset-bottom)]">
+  <nav class="fixed bottom-0 inset-x-0 z-50 lg:hidden border-t border-muted bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
     <div class="flex items-center justify-around h-14">
       <NuxtLink
         to="/"

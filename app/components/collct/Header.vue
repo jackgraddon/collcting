@@ -1,11 +1,11 @@
 <template>
-  <header class="sticky top-0 z-50">
-    <div class="absolute -top-[env(safe-area-inset-top)] left-0 right-0 bottom-0 backdrop-blur-md bg-[var(--ui-bg)]" />
+  <header class="sticky top-0 z-50 shrink-0 overflow-hidden">
+    <div class="absolute -top-[env(safe-area-inset-top)] -left-0 -right-0 bottom-0 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl" />
 
-    <div class="relative flex items-center justify-between px-4 h-14 pt-[env(safe-area-inset-top)]">
+    <div class="relative flex items-center justify-between px-4 h-12 pt-[env(safe-area-inset-top)]">
       <NuxtLink
         to="/"
-        class="flex items-center gap-2 text-lg font-bold"
+        class="flex items-center gap-2"
       >
         <NuxtImg
           src="/app-icon-clear.png"
@@ -14,7 +14,7 @@
           height="28"
           class="rounded-lg"
         />
-        <span>Collct<span class="text-primary">ing</span></span>
+        <span class="text-base font-bold">Collct<span class="text-primary">ing</span></span>
       </NuxtLink>
 
       <UNavigationMenu
