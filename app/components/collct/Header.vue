@@ -1,34 +1,29 @@
 <template>
-  <UHeader
-    class="border-b-0"
-    :toggle="false"
-  >
-    <template #title>
-      <div class="flex items-center gap-2 pt-[env(safe-area-inset-top)]">
-        <NuxtLink
-          to="/"
-          class="flex items-center gap-2 text-lg font-bold"
-        >
-          <NuxtImg
-            src="/app-icon-clear.png"
-            alt="Collct"
-            width="28"
-            height="28"
-            class="rounded-lg"
-          />
-          <span>Collct<span class="text-primary">ing</span></span>
-        </NuxtLink>
-      </div>
-    </template>
+  <header class="fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)]">
+    <div class="absolute inset-0 backdrop-blur-md bg-[var(--ui-bg)]/80 border-b border-muted" />
 
-    <UNavigationMenu
-      :items="items"
-      variant="link"
-      class="hidden lg:flex"
-    />
+    <div class="relative flex items-center justify-between px-4 h-14">
+      <NuxtLink
+        to="/"
+        class="flex items-center gap-2 text-lg font-bold"
+      >
+        <NuxtImg
+          src="/app-icon-clear.png"
+          alt="Collct"
+          width="28"
+          height="28"
+          class="rounded-lg"
+        />
+        <span>Collct<span class="text-primary">ing</span></span>
+      </NuxtLink>
 
-    <template #right>
-      <div class="flex items-center gap-2 pt-[env(safe-area-inset-top)]">
+      <UNavigationMenu
+        :items="items"
+        variant="link"
+        class="hidden lg:flex"
+      />
+
+      <div class="flex items-center gap-2">
         <CollctNotificationBell />
         <UButton
           v-if="accounts.length > 0"
@@ -41,8 +36,8 @@
           <CollctAccountSwitcher />
         </div>
       </div>
-    </template>
-  </UHeader>
+    </div>
+  </header>
 
   <CollctUploadModal
     v-model:open="uploadModal.open.value"
