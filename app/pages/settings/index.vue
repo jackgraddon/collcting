@@ -122,6 +122,7 @@ const tabs = computed(() => [
     <UTabs
       :items="tabs"
       variant="link"
+      :ui="{ label: 'hidden sm:inline' }"
     >
       <template #account>
         <div class="my-4">
