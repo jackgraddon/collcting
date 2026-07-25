@@ -105,7 +105,7 @@ async function upload() {
 <template>
   <UModal
     :open="props.open"
-    :ui="{ content: 'flex flex-col h-full max-h-[100dvh] m-0 rounded-none md:m-auto md:max-h-[85vh] md:rounded-xl' }"
+    :ui="{ content: 'flex flex-col h-full max-h-[100dvh] max-w-full m-0 rounded-none md:m-auto md:max-h-[85vh] md:rounded-xl' }"
     @update:open="emit('update:open', $event)"
   >
     <template #content>
