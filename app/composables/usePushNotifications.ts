@@ -55,7 +55,7 @@ export function usePushNotifications() {
       })
       if (!raw) return null
       const parsed = JSON.parse(raw)
-      return parsed.publicKey ?? null
+      return parsed.vapidPublicKey ?? parsed.publicKey ?? null
     } catch {
       return null
     }
@@ -119,7 +119,6 @@ export function usePushNotifications() {
 
       if (subscription) {
         await api.unsubscribePush(subscription.endpoint)
-
         await subscription.unsubscribe()
         isSubscribed.value = false
       }

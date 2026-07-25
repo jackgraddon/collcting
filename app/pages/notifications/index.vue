@@ -63,10 +63,8 @@ function notificationText(n: Notification): string {
       return ' liked your photo'
     case 'comment':
       return ' commented on your photo'
-    case 'group_join':
-      return ' joined your group'
-    case 'new_post':
-      return n.groupIds.length ? ' shared a new photo' : ' posted a new photo'
+    case 'group_invite':
+      return ' invited you to a group'
     default:
       return ' interacted with your content'
   }
@@ -74,7 +72,7 @@ function notificationText(n: Notification): string {
 
 function notificationLink(n: Notification): string {
   if (n.photoId) return `/post/${n.photoId}`
-  if (n.groupIds.length) return `/groups/${n.groupIds[0]}`
+  if (n.groupId) return `/groups/${n.groupId}`
   return '/'
 }
 

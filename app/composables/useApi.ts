@@ -179,7 +179,7 @@ export function useApi() {
     },
 
     async getVapidPublicKey() {
-      return $api<{ publicKey: string }>('/api/notifications/vapid-key')
+      return $api<{ vapidPublicKey: string }>('/api/notifications/vapid-key')
     },
 
     // Version (health check)

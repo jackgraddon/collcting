@@ -84,11 +84,11 @@ declare global {
 
   interface Notification {
     id: number
-    type: 'like' | 'comment' | 'group_join' | 'new_post'
+    type: 'like' | 'comment' | 'group_invite'
     isRead: boolean
     photoId: number | null
     commentId: number | null
-    groupIds: number[]
+    groupId: number | null
     createdAt: string
     photoUrl: string | null
     actor: {

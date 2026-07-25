@@ -12,8 +12,8 @@ self.addEventListener('push', (event) => {
   }
 
   const type = data.data?.type || data.type
-  const fallbackBody = type === 'new_post'
-    ? 'shared a new photo'
+  const fallbackBody = type === 'group_invite'
+    ? 'invited you to a group'
     : type === 'like'
       ? 'liked your photo'
       : type === 'comment'
@@ -39,8 +39,6 @@ self.addEventListener('notificationclick', (event) => {
 
   if (data.photoId) {
     url = `/post/${data.photoId}`
-  } else if (Array.isArray(data.groupIds) && data.groupIds.length) {
-    url = `/groups/${data.groupIds[0]}`
   } else if (data.groupId) {
     url = `/groups/${data.groupId}`
   }
