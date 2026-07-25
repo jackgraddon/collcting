@@ -143,10 +143,9 @@ onMounted(() => {
     return
   }
 
-  const addServer = params.get('add_server')
-  if (addServer && !serverUrl.value) {
+  if (redirectServer && !serverUrl.value) {
     window.history.replaceState({}, '', '/login')
-    serverUrl.value = addServer
+    serverUrl.value = redirectServer
   }
 })
 

@@ -2,7 +2,7 @@
 const route = useRoute()
 const id = Number(route.params.id)
 const { ensureServerContext } = useServerContext()
-await ensureServerContext(route.query.server as string | null)
+await ensureServerContext(route.query.server_url as string | null)
 const api = useApi()
 const router = useRouter()
 const toast = useToast()
@@ -107,7 +107,7 @@ function share() {
   // Encode server + post into a shareable URL on collct.ing
   const shareUrl = new URL(window.location.origin)
   shareUrl.pathname = `/post/${postId}`
-  shareUrl.searchParams.set('server', serverUrl)
+  shareUrl.searchParams.set('server_url', serverUrl)
   
   const shareData = {
     title: "Collcting",

@@ -22,7 +22,7 @@ export function useServerContext() {
     if (!serverUrl) return activeAccount.value
     const account = switchToServer(serverUrl)
     if (!account) {
-      await navigateTo(`/login?add_server=${encodeURIComponent(serverUrl)}`)
+      await navigateTo(`/login?server_url=${encodeURIComponent(serverUrl)}`)
     }
     return account
   }
