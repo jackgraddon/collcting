@@ -17,7 +17,7 @@ useSeoMeta({
   <UApp>
     <CollctHeader />
 
-    <UMain class="pt-[env(safe-area-inset-top)] px-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+    <UMain class="px-4 pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:pb-0">
       <NuxtPage :keepalive="{ max: 10, exclude: ['login', 'settings', 'account'] }" />
     </UMain>
 
