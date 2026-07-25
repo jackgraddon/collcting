@@ -129,7 +129,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-[calc(100dvh-4rem)] flex items-center justify-center p-4">
+  <div class="min-h-[100dvh] flex items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
     <UCard class="w-full max-w-md">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-primary">

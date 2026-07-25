@@ -110,7 +110,7 @@ async function upload() {
   >
     <template #content>
       <div class="flex flex-col h-full">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 shrink-0">
+        <div class="flex items-center justify-between px-6 py-4 pt-[calc(env(safe-area-inset-top)+1rem)] border-b border-neutral-200 dark:border-neutral-800 shrink-0">
           <div class="flex items-center gap-2">
             <UIcon
               name="i-solar-upload-square-linear"
@@ -222,7 +222,7 @@ async function upload() {
           </p>
         </div>
 
-        <div class="border-t border-neutral-200 dark:border-neutral-800 px-6 py-4 space-y-4 shrink-0">
+        <div class="border-t border-neutral-200 dark:border-neutral-800 px-6 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] space-y-4 shrink-0">
           <div
             v-if="hasPrivateGroups"
             class="space-y-2"
