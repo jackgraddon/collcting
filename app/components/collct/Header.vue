@@ -1,8 +1,8 @@
 <template>
-  <header class="sticky top-0 z-50 shrink-0 overflow-hidden">
-    <div class="absolute -top-[env(safe-area-inset-top)] -left-0 -right-0 bottom-0 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl" />
+  <header class="sticky top-0 z-50 shrink-0">
+    <div class="absolute inset-x-0 -top-[env(safe-area-inset-top)] bottom-0 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl" />
 
-    <div class="relative flex items-center justify-between px-4 h-12 pt-[env(safe-area-inset-top)]">
+    <div class="relative flex items-center justify-between px-4 min-h-12 pt-[env(safe-area-inset-top)]">
       <NuxtLink
         to="/"
         class="flex items-center gap-2"
