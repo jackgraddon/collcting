@@ -74,7 +74,7 @@ async function enableNotifications() {
   } else if (permission.value === 'denied') {
     toast.add({ title: 'Permission denied', description: 'You can enable notifications in your browser settings.', color: 'warning' })
   } else {
-    toast.add({ title: 'Error', description: 'Could not enable notifications. Please try again.', color: 'error' })
+    toast.add({ title: 'Connection failed', description: 'Could not reach the server to set up notifications. Check your connection and try again.', color: 'error' })
   }
 }
 
