@@ -28,12 +28,9 @@ async function handleBrowserAuth() {
 
     const { authorize_url, code } = await requestAuthorization(url)
 
-    window.open(authorize_url, '_blank')
+    sessionStorage.setItem('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
 
-    loading.value = false
-    polling.value = true
-
-    pollForToken(url, code)
+    window.location.href = authorize_url
   } catch (e: unknown) {
     loading.value = false
     error.value = e instanceof Error ? e.message : 'Could not start authorization. Check your server URL.'
@@ -122,6 +119,17 @@ async function handleTokenAuth() {
 }
 
 const hasExistingAccounts = computed(() => accounts.value.length > 0)
+
+onMounted(() => {
+  const pending = sessionStorage.getItem('collct_pending_auth')
+  if (pending) {
+    sessionStorage.removeItem('collct_pending_auth')
+    const { serverUrl: url, code } = JSON.parse(pending)
+    serverUrl.value = url
+    polling.value = true
+    pollForToken(url, code)
+  }
+})
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
