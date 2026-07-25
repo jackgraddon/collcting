@@ -18,6 +18,7 @@ const file = ref<File | null>(null)
 const preview = ref<string | null>(null)
 const caption = ref('')
 const uploading = ref(false)
+const compressing = ref(false)
 
 const groupsData = ref<{ groups: GroupData[] } | null>(null)
 const loadingGroups = ref(false)
@@ -84,8 +85,12 @@ async function upload() {
 
   uploading.value = true
   try {
+    compressing.value = true
+    const photo = await compressImage(file.value)
+    compressing.value = false
+
     const form = new FormData()
-    form.append('photo', file.value)
+    form.append('photo', photo)
     if (caption.value.trim()) form.append('caption', caption.value.trim())
     form.append('groupIds', JSON.stringify(selectedGroupIds.value))
 
@@ -97,6 +102,7 @@ async function upload() {
   } catch {
     toast.add({ title: 'Upload failed', description: 'Please try again.', color: 'error', icon: 'i-lucide-triangle-alert' })
   } finally {
+    compressing.value = false
     uploading.value = false
   }
 }
@@ -293,11 +299,10 @@ async function upload() {
               variant="solid"
               :loading="uploading"
               :disabled="!canSubmit"
+              :label="compressing ? 'Processing...' : 'Upload'"
               icon="i-solar-upload-square-linear"
               @click="upload"
-            >
-              Upload
-            </UButton>
+            />
           </div>
         </div>
       </div>
