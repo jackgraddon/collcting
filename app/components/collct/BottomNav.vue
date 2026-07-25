@@ -33,6 +33,7 @@ function goTo(path: string) {
       </NuxtLink>
 
       <button
+        v-if="accounts.length > 0"
         class="flex flex-col items-center justify-center gap-0.5 w-16 h-full text-muted transition-colors hover:text-default"
         @click="uploadModal.openModal()"
       >

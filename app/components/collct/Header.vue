@@ -1,22 +1,24 @@
 <template>
   <UHeader
-    class="border-b-0 pt-[env(safe-area-inset-top)]"
+    class="border-b-0"
     :toggle="false"
   >
     <template #title>
-      <NuxtLink
-        to="/"
-        class="flex items-center gap-2 text-lg font-bold"
-      >
-        <NuxtImg
-          src="/app-icon-clear.png"
-          alt="Collct"
-          width="28"
-          height="28"
-          class="rounded-lg"
-        />
-        <span>Collct<span class="text-primary">ing</span></span>
-      </NuxtLink>
+      <div class="flex items-center gap-2 pt-[env(safe-area-inset-top)]">
+        <NuxtLink
+          to="/"
+          class="flex items-center gap-2 text-lg font-bold"
+        >
+          <NuxtImg
+            src="/app-icon-clear.png"
+            alt="Collct"
+            width="28"
+            height="28"
+            class="rounded-lg"
+          />
+          <span>Collct<span class="text-primary">ing</span></span>
+        </NuxtLink>
+      </div>
     </template>
 
     <UNavigationMenu
@@ -26,15 +28,18 @@
     />
 
     <template #right>
-      <CollctNotificationBell />
-      <UButton
-        label="Post"
-        icon="i-solar-add-circle-linear"
-        class="hidden lg:flex"
-        @click="uploadModal.openModal()"
-      />
-      <div class="hidden lg:block">
-        <CollctAccountSwitcher />
+      <div class="flex items-center gap-2 pt-[env(safe-area-inset-top)]">
+        <CollctNotificationBell />
+        <UButton
+          v-if="accounts.length > 0"
+          label="Post"
+          icon="i-solar-add-circle-linear"
+          class="hidden lg:flex"
+          @click="uploadModal.openModal()"
+        />
+        <div class="hidden lg:block">
+          <CollctAccountSwitcher />
+        </div>
       </div>
     </template>
   </UHeader>
@@ -51,6 +56,7 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 const route = useRoute()
 const { emit } = useUploadBus()
 const uploadModal = useUploadModal()
+const { accounts } = useAccounts()
 
 const items = computed<NavigationMenuItem[]>(() => [
   {
