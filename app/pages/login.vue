@@ -129,8 +129,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-[100dvh] flex items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-    <UCard class="w-full max-w-md">
+  <div class="min-h-dvh flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <UCard class="w-full max-w-md mx-auto mt-8 p-4">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-primary">
           Collct
@@ -184,14 +184,11 @@ onUnmounted(() => {
 
         <div
           v-if="!showTokenForm"
-          class="relative"
+          class="flex items-center gap-4 my-2"
         >
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-muted" />
-          </div>
-          <div class="relative flex justify-center text-xs">
-            <span class="bg-[var(--ui-card)] px-2 text-muted">or</span>
-          </div>
+          <div class="flex-1 border-t border-muted" />
+          <span class="text-xs text-muted">or</span>
+          <div class="flex-1 border-t border-muted" />
         </div>
 
         <div v-if="!showTokenForm">
