@@ -96,7 +96,7 @@ export function useAccounts() {
       baseURL: serverUrl,
       method: 'post',
       body: {
-        redirect_uri: window.location.origin,
+        redirect_uri: window.location.origin + '/login',
         app_name: appName
       }
     })

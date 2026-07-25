@@ -121,6 +121,18 @@ async function handleTokenAuth() {
 const hasExistingAccounts = computed(() => accounts.value.length > 0)
 
 onMounted(() => {
+  const params = new URLSearchParams(window.location.search)
+  const redirectCode = params.get('code')
+  const redirectServer = params.get('server_url')
+
+  if (redirectCode && redirectServer) {
+    window.history.replaceState({}, '', '/login')
+    serverUrl.value = redirectServer
+    polling.value = true
+    pollForToken(redirectServer, redirectCode)
+    return
+  }
+
   const pending = sessionStorage.getItem('collct_pending_auth')
   if (pending) {
     sessionStorage.removeItem('collct_pending_auth')
@@ -137,7 +149,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-dvh flex flex-col px-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+  <div class="min-h-dvh flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
     <UCard class="w-full max-w-md mx-auto mt-8">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-primary">
@@ -271,7 +283,7 @@ onUnmounted(() => {
             Waiting for authorization
           </p>
           <p class="text-sm text-muted mt-1">
-            Complete the sign-in in the browser tab that opened, then come back here.
+            Complete the sign-in in the browser, then come back here.
           </p>
         </div>
         <UButton
