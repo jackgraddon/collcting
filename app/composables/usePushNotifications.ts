@@ -47,8 +47,15 @@ export function usePushNotifications() {
 
   async function fetchVapidKey(): Promise<string | null> {
     try {
-      const data = await $api<{ publicKey: string }>('/api/notifications/vapid-key')
-      return data.publicKey
+      const raw = await $fetch<string>('/api/notifications/vapid-key', {
+        baseURL: activeAccount.value!.serverUrl,
+        method: 'get',
+        headers: { Authorization: `Bearer ${activeAccount.value!.token}` },
+        responseType: 'text'
+      })
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      return parsed.publicKey ?? null
     } catch {
       return null
     }
