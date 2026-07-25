@@ -129,8 +129,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-dvh flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-    <UCard class="w-full max-w-md mx-auto mt-8 p-4">
+  <div class="min-h-dvh flex flex-col px-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <UCard class="w-full max-w-md mx-auto mt-8">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-primary">
           Collct
@@ -149,6 +149,7 @@ onUnmounted(() => {
             v-model="serverUrl"
             placeholder="https://photos.example.com"
             icon="solar:planet-3-linear"
+            class="w-full"
           />
         </UFormField>
 
@@ -160,6 +161,7 @@ onUnmounted(() => {
             v-model="accountName"
             placeholder="e.g. Family Photos"
             icon="solar:user-circle-linear"
+            class="w-full"
           />
         </UFormField>
 
