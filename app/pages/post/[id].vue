@@ -201,7 +201,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <UContainer class="py-10 max-w-4xl">
+  <div class="w-full max-w-4xl mx-auto py-10">
     <div
       v-if="!post && loadingFresh"
       class="space-y-6"
@@ -504,5 +504,5 @@ onUnmounted(() => {
         </UCard>
       </template>
     </UModal>
-  </UContainer>
+  </div>
 </template>

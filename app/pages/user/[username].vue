@@ -46,7 +46,7 @@ function lighten(hex: string | null | undefined, amount = 0.85): string {
 </script>
 
 <template>
-  <UContainer class="py-10 max-w-4xl">
+  <div class="w-full max-w-4xl mx-auto py-10">
     <UButton
       icon="solar:arrow-left-linear"
       color="neutral"
@@ -207,5 +207,5 @@ function lighten(hex: string | null | undefined, amount = 0.85): string {
         </div>
       </div>
     </template>
-  </UContainer>
+  </div>
 </template>

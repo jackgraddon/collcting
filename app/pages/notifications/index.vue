@@ -92,7 +92,7 @@ function formatRelativeTime(date: string): string {
 </script>
 
 <template>
-  <UContainer class="py-10 max-w-2xl">
+  <div class="w-full max-w-2xl mx-auto py-10">
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-3">
         <UButton
@@ -239,5 +239,5 @@ function formatRelativeTime(date: string): string {
         Load more
       </UButton>
     </div>
-  </UContainer>
+  </div>
 </template>

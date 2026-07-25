@@ -12,7 +12,7 @@ function handleRemoveAccount(id: string) {
 </script>
 
 <template>
-  <UContainer class="py-8 max-w-lg">
+  <div class="w-full max-w-lg mx-auto py-8">
     <div class="space-y-4">
       <UCard
         v-for="account in accounts"
@@ -69,5 +69,5 @@ function handleRemoveAccount(id: string) {
         to="/login"
       />
     </div>
-  </UContainer>
+  </div>
 </template>

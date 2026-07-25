@@ -106,7 +106,7 @@ useIntersectionObserver(
 </script>
 
 <template>
-  <UContainer class="py-6">
+  <div class="w-full mx-auto py-6">
     <!-- Pull to refresh indicator -->
     <div
       class="flex justify-center overflow-hidden transition-all duration-200"
@@ -186,5 +186,5 @@ useIntersectionObserver(
         You're all caught up!
       </p>
     </div>
-  </UContainer>
+  </div>
 </template>
