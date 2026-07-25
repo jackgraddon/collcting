@@ -11,6 +11,11 @@ export default defineNuxtRouteMiddleware((to) => {
 
   // Redirect to login if no accounts
   if (accounts.value.length === 0) {
+    // If the current route has a server_url, preserve it in redirect
+    const serverUrl = to.query.server_url as string | undefined
+    if (serverUrl) {
+      return navigateTo(`/login?server_url=${encodeURIComponent(serverUrl)}`)
+    }
     return navigateTo('/login')
   }
 })
