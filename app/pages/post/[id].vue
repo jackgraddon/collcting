@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 const route = useRoute()
 const id = Number(route.params.id)
+const { ensureServerContext } = useServerContext()
+await ensureServerContext(route.query.server as string | null)
 const api = useApi()
 const router = useRouter()
 const toast = useToast()
@@ -98,8 +100,31 @@ async function confirmDelete() {
 }
 
 function share() {
-  navigator.clipboard.writeText(window.location.href)
-  toast.add({ title: 'Link copied', color: 'neutral', icon: 'solar:link-linear' })
+  // Build a URL that includes the server instance
+  const serverUrl = activeAccount.value?.serverUrl || window.location.origin
+  const postId = route.params.id
+  
+  // Encode server + post into a shareable URL on collct.ing
+  const shareUrl = new URL(window.location.origin)
+  shareUrl.pathname = `/post/${postId}`
+  shareUrl.searchParams.set('server', serverUrl)
+  
+  const shareData = {
+    title: "Collcting",
+    text: "Check out this post from my Collct server!",
+    url: shareUrl.toString(),
+  }
+
+  try {
+    navigator.share(shareData)
+  } catch(e) {
+    navigator.clipboard.writeText(shareUrl.toString())
+    toast.add({ 
+      title: 'Link copied', 
+      color: 'neutral', 
+      icon: 'solar:link-linear' 
+    })
+  }
 }
 
 const liked = ref(false)
@@ -293,7 +318,7 @@ onUnmounted(() => {
             <UButton
               color="neutral"
               variant="ghost"
-              icon="solar:link-linear"
+              icon="solar:square-share-line-linear"
               size="sm"
               @click="share"
             >

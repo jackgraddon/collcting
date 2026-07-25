@@ -140,6 +140,13 @@ onMounted(() => {
     serverUrl.value = url
     polling.value = true
     pollForToken(url, code)
+    return
+  }
+
+  const addServer = params.get('add_server')
+  if (addServer && !serverUrl.value) {
+    window.history.replaceState({}, '', '/login')
+    serverUrl.value = addServer
   }
 })
 
