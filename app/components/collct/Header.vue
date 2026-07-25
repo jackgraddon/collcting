@@ -1,6 +1,6 @@
 <template>
   <UHeader
-    class="border-b-0"
+    class="border-b-0 pt-[env(safe-area-inset-top)]"
     :toggle="false"
   >
     <template #title>
