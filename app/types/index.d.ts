@@ -37,6 +37,8 @@ declare global {
     captionHistory: Array<{ text: string | null, editedAt: string }> | null
     url: string
     createdAt: string | Date
+    isMoment?: boolean
+    momentCapturedAt?: string | null
     user: {
       id: number
       name: string
@@ -54,6 +56,7 @@ declare global {
     color?: string | null
     isPublic: boolean
     ownerId: number | null
+    momentsEnabled?: boolean
     createdAt: string | Date
     archivedAt?: string | null
     role?: string
@@ -84,7 +87,7 @@ declare global {
 
   interface Notification {
     id: number
-    type: 'like' | 'comment' | 'group_invite'
+    type: 'like' | 'comment' | 'group_invite' | 'group_join' | 'new_post' | 'moment'
     isRead: boolean
     photoId: number | null
     commentId: number | null
@@ -114,5 +117,23 @@ declare global {
     user: AccountUser | null
     connected: boolean
     addedAt: number
+  }
+
+  interface MomentState {
+    enabled: boolean
+    windowStart: string
+    windowEnd: string
+    momentTime: string | null
+    captureDuration: number
+    status: 'before' | 'active' | 'after' | 'disabled'
+    capturedToday: boolean
+    userMomentsGroups: {
+      id: number
+      name: string
+      slug: string
+      icon?: string | null
+      color?: string | null
+      isPublic: boolean
+    }[]
   }
 }

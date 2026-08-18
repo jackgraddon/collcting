@@ -18,7 +18,9 @@ self.addEventListener('push', (event) => {
       ? 'liked your photo'
       : type === 'comment'
         ? 'commented on your photo'
-        : 'interacted with your content'
+        : type === 'moment'
+          ? 'Your moment is ready!'
+          : 'interacted with your content'
 
   const options = {
     body: data.body || fallbackBody,
@@ -37,7 +39,9 @@ self.addEventListener('notificationclick', (event) => {
   const data = event.notification.data
   let url = '/'
 
-  if (data.photoId) {
+  if (data.type === 'moment') {
+    url = '/?upload=moment'
+  } else if (data.photoId) {
     url = `/post/${data.photoId}`
   } else if (data.groupId) {
     url = `/groups/${data.groupId}`

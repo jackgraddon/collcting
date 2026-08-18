@@ -76,6 +76,8 @@ export function useApi() {
         createdAt: string
         captionEditedAt: string | null
         captionHistory: Array<{ text: string | null, editedAt: string }> | null
+        isMoment: boolean
+        momentCapturedAt: string | null
         url: string
       }>('/api/photos', { method: 'post', body: formData })
     },
@@ -127,7 +129,7 @@ export function useApi() {
       return $api<GroupData>('/api/groups', { method: 'post', body: data })
     },
 
-    async updateGroup(id: number, data: { name?: string, icon?: string, color?: string }) {
+    async updateGroup(id: number, data: { name?: string, icon?: string, color?: string, momentsEnabled?: boolean }) {
       return $api<GroupData>(`/api/groups/${id}`, { method: 'patch', body: data })
     },
 
@@ -185,6 +187,11 @@ export function useApi() {
     // Version (health check)
     async getVersion() {
       return $api<{ version: string }>('/api/version')
+    },
+
+    // Moments
+    async getMomentToday() {
+      return $api<MomentState>('/api/moments/today')
     }
   }
 }

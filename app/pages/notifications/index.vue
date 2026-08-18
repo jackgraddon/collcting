@@ -65,12 +65,15 @@ function notificationText(n: Notification): string {
       return ' commented on your photo'
     case 'group_invite':
       return ' invited you to a group'
+    case 'moment':
+      return ' — your moment is ready!'
     default:
       return ' interacted with your content'
   }
 }
 
 function notificationLink(n: Notification): string {
+  if (n.type === 'moment') return '/?upload=moment'
   if (n.photoId) return `/post/${n.photoId}`
   if (n.groupId) return `/groups/${n.groupId}`
   return '/'

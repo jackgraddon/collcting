@@ -3,6 +3,10 @@ import { useIntersectionObserver } from '@vueuse/core'
 
 const { on } = useUploadBus()
 const api = useApi()
+const route = useRoute()
+const router = useRouter()
+const { canCapture, activeSupported, isActive } = useMoments()
+const { openMomentModal } = useUploadModal()
 
 interface FeedState {
   photos: PostData[]
@@ -31,6 +35,8 @@ const visiblePosts = computed(() => [
 ])
 
 const exhausted = computed(() => feedState.value?.nextCursor === null)
+
+const showMomentBanner = computed(() => activeSupported.value && canCapture.value && isActive.value)
 
 async function loadInitial() {
   loading.value = true
@@ -85,6 +91,11 @@ async function loadMore() {
 onMounted(async () => {
   await loadInitial()
   await checkForNewPosts()
+
+  if (route.query.upload === 'moment') {
+    openMomentModal()
+    router.replace({ query: {} })
+  }
 })
 
 onActivated(() => {
@@ -137,6 +148,30 @@ useIntersectionObserver(
         @click="showNewPosts"
       >
         {{ newPostCount }} new {{ newPostCount === 1 ? 'post' : 'posts' }} — tap to see
+      </button>
+    </Transition>
+
+    <!-- Moment capture banner -->
+    <Transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <button
+        v-if="showMomentBanner"
+        class="w-full mb-4 p-4 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 text-center transition-colors hover:bg-primary/10"
+        @click="openMomentModal"
+      >
+        <div class="flex items-center justify-center gap-2 mb-1">
+          <UIcon name="i-lucide-aperture" class="w-5 h-5 text-primary" />
+          <span class="font-semibold text-primary">Moment is active!</span>
+        </div>
+        <p class="text-sm text-muted">
+          Tap to capture your moment
+        </p>
       </button>
     </Transition>
 

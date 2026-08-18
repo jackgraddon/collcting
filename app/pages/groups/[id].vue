@@ -4,6 +4,7 @@ const router = useRouter()
 const toast = useToast()
 const api = useApi()
 const { activeAccount } = useAccounts()
+const { activeSupported } = useMoments()
 
 const groupId = Number(route.params.id)
 
@@ -66,6 +67,30 @@ async function saveCustomization() {
     })
   } finally {
     savingCustomization.value = false
+  }
+}
+
+const savingMoments = ref(false)
+
+async function toggleMomentsEnabled() {
+  if (!group.value) return
+  savingMoments.value = true
+  try {
+    const updated = await api.updateGroup(groupId, {
+      momentsEnabled: !group.value.momentsEnabled
+    })
+    group.value.momentsEnabled = updated.momentsEnabled
+    toast.add({ title: 'Group updated', color: 'success', icon: 'i-lucide-circle-check' })
+  } catch (e: unknown) {
+    const err = e as { data?: { statusMessage?: string } }
+    toast.add({
+      title: 'Failed to update group',
+      description: err.data?.statusMessage || 'Please try again.',
+      color: 'error',
+      icon: 'i-lucide-triangle-alert'
+    })
+  } finally {
+    savingMoments.value = false
   }
 }
 
@@ -274,6 +299,30 @@ watchEffect(() => {
               Save
             </UButton>
           </div>
+        </div>
+      </div>
+
+      <div
+        v-if="isAdmin && !group.isPublic && activeSupported && group.momentsEnabled !== undefined"
+        class="space-y-3"
+      >
+        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">
+          Moments
+        </h2>
+        <div class="p-4 rounded-xl border border-default">
+          <label class="flex items-center justify-between cursor-pointer">
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium">Allow moments in this group</p>
+              <p class="text-xs text-muted mt-0.5">
+                Members can post moments to this group when the daily window is active.
+              </p>
+            </div>
+            <USwitch
+              :model-value="group.momentsEnabled ?? true"
+              :loading="savingMoments"
+              @update:model-value="toggleMomentsEnabled"
+            />
+          </label>
         </div>
       </div>
 

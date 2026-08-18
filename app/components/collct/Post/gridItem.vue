@@ -37,6 +37,13 @@
       />
     </div>
 
+    <div
+      v-if="isMoment"
+      class="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center"
+    >
+      <UIcon name="i-lucide-aperture" class="w-3.5 h-3.5 text-white" />
+    </div>
+
     <CollctPostGroupChips
       :groups="postData.groups"
       class="absolute bottom-2 left-2 right-2"
@@ -55,13 +62,21 @@ const isLoaded = ref(false)
 const colorMode = useColorMode()
 const { returningPhotoId } = useViewTransition()
 
+const isMoment = computed(() => !!props.postData.isMoment)
+
 const themeBorders: Record<string, string> = {
   light: 'border-neutral-100',
   dark: 'border-neutral-700'
 }
 
+const momentBorders: Record<string, string> = {
+  light: 'border-sunflower-gold-400',
+  dark: 'border-sunflower-gold-600'
+}
+
 const activeBorder = computed(() => {
-  return themeBorders[colorMode.value] || themeBorders.light
+  const borders = isMoment.value ? momentBorders : themeBorders
+  return borders[colorMode.value] || borders.light
 })
 
 const gridTransitionName = computed(() => {

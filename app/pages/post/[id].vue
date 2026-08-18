@@ -82,6 +82,14 @@ function formatEditDate(isoString: string) {
   }).format(parseSafeDate(isoString))
 }
 
+function formatMomentTime(iso: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }).format(parseSafeDate(iso))
+}
+
 const deleteModal = ref(false)
 const deleting = ref(false)
 
@@ -100,29 +108,27 @@ async function confirmDelete() {
 }
 
 function share() {
-  // Build a URL that includes the server instance
   const serverUrl = activeAccount.value?.serverUrl || window.location.origin
   const postId = route.params.id
-  
-  // Encode server + post into a shareable URL on collct.ing
+
   const shareUrl = new URL(window.location.origin)
   shareUrl.pathname = `/post/${postId}`
   shareUrl.searchParams.set('server_url', serverUrl)
-  
+
   const shareData = {
-    title: "Collcting",
-    text: "Check out this post from my Collct server!",
-    url: shareUrl.toString(),
+    title: 'Collcting',
+    text: 'Check out this post from my Collct server!',
+    url: shareUrl.toString()
   }
 
   try {
     navigator.share(shareData)
-  } catch(e) {
+  } catch {
     navigator.clipboard.writeText(shareUrl.toString())
-    toast.add({ 
-      title: 'Link copied', 
-      color: 'neutral', 
-      icon: 'solar:link-linear' 
+    toast.add({
+      title: 'Link copied',
+      color: 'neutral',
+      icon: 'solar:link-linear'
     })
   }
 }
@@ -338,6 +344,24 @@ onUnmounted(() => {
         </div>
 
         <CollctPostGroupChips :groups="post.groups" />
+
+        <div
+          v-if="post.isMoment"
+          class="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20"
+        >
+          <UIcon name="i-lucide-aperture" class="w-4 h-4 text-primary shrink-0" />
+          <div class="min-w-0">
+            <p class="text-xs font-medium text-primary">
+              Moment
+            </p>
+            <p
+              v-if="post.momentCapturedAt"
+              class="text-xs text-muted"
+            >
+              Captured {{ formatMomentTime(post.momentCapturedAt) }}
+            </p>
+          </div>
+        </div>
 
         <div class="flex items-start justify-between gap-4">
           <div class="flex-1 min-w-0 space-y-1">
