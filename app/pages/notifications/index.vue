@@ -1,9 +1,15 @@
 <script lang="ts" setup>
 const router = useRouter()
 const api = useApi()
-const { shouldPrompt, requestPermission, dismissPrompt } = usePushNotifications()
+const { shouldPrompt, isPwa, requestPermission, dismissPrompt } = usePushNotifications()
 
 const showPrompt = computed(() => shouldPrompt.value)
+
+const showInstallNote = computed(() => {
+  if (!import.meta.client) return false
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  return isIos && !isPwa.value
+})
 
 async function enableNotifications() {
   await requestPermission()
@@ -133,6 +139,12 @@ function formatRelativeTime(date: string): string {
         </p>
         <p class="text-xs text-muted mt-0.5">
           Get notified when friends like or comment on your photos.
+        </p>
+        <p
+          v-if="showInstallNote"
+          class="text-xs text-muted mt-1 italic"
+        >
+          On iOS, install this app to your home screen first.
         </p>
       </div>
       <div class="flex items-center gap-2 shrink-0">

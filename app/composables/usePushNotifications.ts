@@ -1,9 +1,12 @@
+type NotificationStatus = 'unsupported' | 'disabled' | 'pending' | 'active' | 'stale' | 'error'
+
+const SUBSCRIPTION_STORAGE_PREFIX = 'collct-push-sub-'
+const DISMISS_KEY = 'collct-push-prompt-dismissed'
+const DISMISS_DAYS = 7
+
 export function usePushNotifications() {
   const api = useApi()
   const { activeAccount } = useAccounts()
-
-  const DISMISS_KEY = 'collct-push-prompt-dismissed'
-  const DISMISS_DAYS = 7
 
   const isSupported = computed(() => {
     return import.meta.client
@@ -12,10 +15,26 @@ export function usePushNotifications() {
       && 'Notification' in window
   })
 
-  const isSubscribed = ref(false)
+  const isPwa = computed(() => {
+    if (!import.meta.client) return false
+    return navigator.standalone === true
+      || window.matchMedia('(display-mode: standalone)').matches
+  })
+
   const permission = ref<NotificationPermission>('default')
-  const dismissed = ref(false)
+  const hasLocalSubscription = ref(false)
+  const validating = ref(false)
   const vapidKey = ref<string | null>(null)
+  const dismissed = ref(false)
+
+  const notificationStatus = computed<NotificationStatus>(() => {
+    if (!isSupported.value) return 'unsupported'
+    if (permission.value === 'denied') return 'disabled'
+    if (validating.value) return 'pending'
+    if (hasLocalSubscription.value && permission.value === 'granted') return 'active'
+    if (permission.value === 'granted' && !hasLocalSubscription.value) return 'stale'
+    return 'pending'
+  })
 
   const shouldPrompt = computed(() => {
     if (!isSupported.value || !vapidKey.value) return false
@@ -32,6 +51,24 @@ export function usePushNotifications() {
     }
     return true
   })
+
+  function getSubscriptionKey(): string {
+    const acct = activeAccount.value
+    if (!acct) return ''
+    return `${SUBSCRIPTION_STORAGE_PREFIX}${acct.id}-${acct.serverUrl}`
+  }
+
+  function setSubscribedForAccount(value: boolean) {
+    if (!import.meta.client) return
+    const key = getSubscriptionKey()
+    if (key) {
+      if (value) {
+        localStorage.setItem(key, 'true')
+      } else {
+        localStorage.removeItem(key)
+      }
+    }
+  }
 
   function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -61,7 +98,122 @@ export function usePushNotifications() {
     }
   }
 
-  async function requestPermission() {
+  async function subscribe(): Promise<boolean> {
+    if (!isSupported.value || !vapidKey.value) return false
+
+    permission.value = Notification.permission
+    if (permission.value !== 'granted') return false
+
+    try {
+      const registration = await navigator.serviceWorker.ready
+      const existing = await registration.pushManager.getSubscription()
+
+      if (existing) {
+        try {
+          await api.subscribePush(existing.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
+          hasLocalSubscription.value = true
+          setSubscribedForAccount(true)
+          return true
+        } catch {
+          await existing.unsubscribe()
+        }
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey.value)
+      })
+
+      await api.subscribePush(subscription.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
+
+      hasLocalSubscription.value = true
+      setSubscribedForAccount(true)
+      return true
+    } catch (err) {
+      console.error('[push] Subscribe failed:', err)
+      hasLocalSubscription.value = false
+      return false
+    }
+  }
+
+  async function unsubscribe(): Promise<void> {
+    if (!isSupported.value) return
+
+    try {
+      const registration = await navigator.serviceWorker.ready
+      const subscription = await registration.pushManager.getSubscription()
+
+      if (subscription) {
+        try {
+          await api.unsubscribePush(subscription.endpoint)
+        } catch {
+          // Server may not know about this subscription — continue with local cleanup
+        }
+        await subscription.unsubscribe()
+      }
+
+      hasLocalSubscription.value = false
+      setSubscribedForAccount(false)
+    } catch (err) {
+      console.error('[push] Unsubscribe failed:', err)
+    }
+  }
+
+  async function validateSubscription(): Promise<boolean> {
+    if (!isSupported.value || !activeAccount.value) return false
+
+    try {
+      const registration = await navigator.serviceWorker.ready
+      const subscription = await registration.pushManager.getSubscription()
+
+      if (!subscription) {
+        hasLocalSubscription.value = false
+        setSubscribedForAccount(false)
+        return false
+      }
+
+      await api.subscribePush(subscription.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
+      hasLocalSubscription.value = true
+      setSubscribedForAccount(true)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function recoverStaleSubscription(): Promise<boolean> {
+    if (!isSupported.value || !vapidKey.value) return false
+
+    validating.value = true
+    try {
+      const registration = await navigator.serviceWorker.ready
+      const existing = await registration.pushManager.getSubscription()
+
+      if (existing) {
+        await existing.unsubscribe().catch(() => {})
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey.value)
+      })
+
+      await api.subscribePush(subscription.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
+
+      hasLocalSubscription.value = true
+      setSubscribedForAccount(true)
+      return true
+    } catch (err) {
+      console.error('[push] Recovery failed:', err)
+      hasLocalSubscription.value = false
+      setSubscribedForAccount(false)
+      return false
+    } finally {
+      validating.value = false
+    }
+  }
+
+  async function requestPermission(): Promise<boolean> {
     if (!isSupported.value) return false
 
     const result = await Notification.requestPermission()
@@ -72,8 +224,7 @@ export function usePushNotifications() {
         vapidKey.value = await fetchVapidKey()
       }
       if (vapidKey.value) {
-        await subscribe()
-        return true
+        return await subscribe()
       }
       return false
     }
@@ -81,50 +232,12 @@ export function usePushNotifications() {
     return false
   }
 
-  async function subscribe() {
-    if (!isSupported.value || !vapidKey.value) return
-
-    permission.value = Notification.permission
-    if (permission.value !== 'granted') return
-
-    try {
-      const registration = await navigator.serviceWorker.ready
-      const existing = await registration.pushManager.getSubscription()
-
-      if (existing) {
-        isSubscribed.value = true
-        return existing
-      }
-
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey.value)
-      })
-
-      await api.subscribePush(subscription.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
-
-      isSubscribed.value = true
-      return subscription
-    } catch (err) {
-      console.error('[push] Subscribe failed:', err)
+  async function retry(): Promise<boolean> {
+    if (!vapidKey.value) {
+      vapidKey.value = await fetchVapidKey()
     }
-  }
-
-  async function unsubscribe() {
-    if (!isSupported.value) return
-
-    try {
-      const registration = await navigator.serviceWorker.ready
-      const subscription = await registration.pushManager.getSubscription()
-
-      if (subscription) {
-        await api.unsubscribePush(subscription.endpoint)
-        await subscription.unsubscribe()
-        isSubscribed.value = false
-      }
-    } catch (err) {
-      console.error('[push] Unsubscribe failed:', err)
-    }
+    if (!vapidKey.value) return false
+    return await recoverStaleSubscription()
   }
 
   function dismissPrompt() {
@@ -132,12 +245,12 @@ export function usePushNotifications() {
     localStorage.setItem(DISMISS_KEY, String(Date.now()))
   }
 
-  async function checkSubscription() {
+  async function checkLocalSubscription() {
     if (!isSupported.value) return
     try {
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.getSubscription()
-      isSubscribed.value = !!subscription
+      hasLocalSubscription.value = !!subscription
       permission.value = Notification.permission
     } catch {
       // SW not ready yet
@@ -150,21 +263,53 @@ export function usePushNotifications() {
     if ('Notification' in window) {
       permission.value = Notification.permission
     }
-    await checkSubscription()
+    await checkLocalSubscription()
+  }
+
+  async function onForeground() {
+    if (!import.meta.client || document.hidden) return
+    if (!activeAccount.value || !isSupported.value) return
+
+    await checkLocalSubscription()
+
+    if (permission.value === 'granted') {
+      const valid = await validateSubscription()
+      if (!valid && permission.value === 'granted') {
+        if (!vapidKey.value) {
+          vapidKey.value = await fetchVapidKey()
+        }
+        if (vapidKey.value) {
+          await recoverStaleSubscription()
+        }
+      }
+    }
   }
 
   init()
 
+  if (import.meta.client) {
+    document.addEventListener('visibilitychange', onForeground)
+  }
+
+  onUnmounted(() => {
+    if (import.meta.client) {
+      document.removeEventListener('visibilitychange', onForeground)
+    }
+  })
+
   return {
     isSupported,
-    isSubscribed,
+    isPwa,
     permission,
+    notificationStatus,
+    hasLocalSubscription,
     shouldPrompt,
     vapidKey,
     subscribe,
     unsubscribe,
     requestPermission,
+    retry,
     dismissPrompt,
-    checkSubscription
+    checkLocalSubscription
   }
 }

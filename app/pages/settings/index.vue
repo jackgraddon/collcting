@@ -3,7 +3,7 @@ const router = useRouter()
 const toast = useToast()
 const api = useApi()
 const { activeAccount, removeAccount, accounts } = useAccounts()
-const { isSupported, isSubscribed, permission, requestPermission, unsubscribe } = usePushNotifications()
+const { isPwa, permission, notificationStatus, requestPermission, unsubscribe, retry } = usePushNotifications()
 
 const accountState = reactive({
   name: activeAccount.value?.user?.name ?? '',
@@ -13,6 +13,7 @@ const accountState = reactive({
 const saving = ref(false)
 const avatarInput = ref<HTMLInputElement | null>(null)
 const uploadingAvatar = ref(false)
+const retrying = ref(false)
 
 const serverVersion = ref<string | null>(null)
 
@@ -23,9 +24,118 @@ try {
   // ignore
 }
 
-const isPushGranted = computed(() => permission.value === 'granted' && isSubscribed.value)
-const isPushDenied = computed(() => permission.value === 'denied')
-const isPushNotSupported = computed(() => !isSupported.value)
+const statusConfig = computed(() => {
+  switch (notificationStatus.value) {
+    case 'unsupported':
+      return {
+        icon: 'i-lucide-bell-off',
+        iconClass: 'text-muted',
+        label: 'Not supported',
+        description: isPwa.value
+          ? 'Your browser doesn\'t support push notifications.'
+          : 'Install this app to your home screen to enable notifications.',
+        showEnable: false,
+        showDisable: false,
+        showRetry: false
+      }
+    case 'disabled':
+      return {
+        icon: 'i-lucide-bell-off',
+        iconClass: 'text-muted',
+        label: 'Notifications blocked',
+        description: 'Enable notifications in your browser settings.',
+        showEnable: false,
+        showDisable: false,
+        showRetry: false
+      }
+    case 'pending':
+      return {
+        icon: 'i-lucide-bell-ring',
+        iconClass: 'text-primary animate-pulse',
+        label: 'Requesting permission...',
+        description: 'Waiting for your response.',
+        showEnable: false,
+        showDisable: false,
+        showRetry: false
+      }
+    case 'active':
+      return {
+        icon: 'i-lucide-bell-ring',
+        iconClass: 'text-success',
+        label: 'Notifications enabled',
+        description: 'You\'ll receive push notifications for new likes, comments, group joins, and moments.',
+        showEnable: false,
+        showDisable: true,
+        showRetry: false
+      }
+    case 'stale':
+      return {
+        icon: 'i-lucide-refresh-cw',
+        iconClass: 'text-primary animate-spin',
+        label: 'Re-enabling notifications...',
+        description: 'Your subscription expired. Re-enabling automatically.',
+        showEnable: false,
+        showDisable: false,
+        showRetry: false
+      }
+    case 'error':
+      return {
+        icon: 'i-lucide-triangle-alert',
+        iconClass: 'text-error',
+        label: 'Notifications failed',
+        description: 'Could not set up push notifications.',
+        showEnable: false,
+        showDisable: false,
+        showRetry: true
+      }
+    default:
+      return {
+        icon: 'i-lucide-bell',
+        iconClass: 'text-muted',
+        label: 'Notifications not enabled',
+        description: 'Enable notifications to get alerted when friends interact with your photos.',
+        showEnable: true,
+        showDisable: false,
+        showRetry: false
+      }
+  }
+})
+
+const showIosNote = computed(() => {
+  if (!import.meta.client) return false
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  return isIos && isPwa.value && notificationStatus.value === 'active'
+})
+
+async function enableNotifications() {
+  const granted = await requestPermission()
+  if (granted) {
+    toast.add({ title: 'Notifications enabled', color: 'success' })
+  } else if (permission.value === 'denied') {
+    toast.add({ title: 'Permission denied', description: 'You can enable notifications in your browser settings.', color: 'warning' })
+  } else {
+    toast.add({ title: 'Connection failed', description: 'Could not reach the server to set up notifications. Check your connection and try again.', color: 'error' })
+  }
+}
+
+async function disableNotifications() {
+  await unsubscribe()
+  toast.add({ title: 'Notifications disabled', color: 'success' })
+}
+
+async function retryNotifications() {
+  retrying.value = true
+  try {
+    const ok = await retry()
+    if (ok) {
+      toast.add({ title: 'Notifications re-enabled', color: 'success' })
+    } else {
+      toast.add({ title: 'Retry failed', description: 'Could not set up notifications. Check your connection and try again.', color: 'error' })
+    }
+  } finally {
+    retrying.value = false
+  }
+}
 
 function triggerAvatarUpload() {
   avatarInput.value?.click()
@@ -65,22 +175,6 @@ async function onSaveAccount() {
   } finally {
     saving.value = false
   }
-}
-
-async function enableNotifications() {
-  const granted = await requestPermission()
-  if (granted) {
-    toast.add({ title: 'Notifications enabled', color: 'success' })
-  } else if (permission.value === 'denied') {
-    toast.add({ title: 'Permission denied', description: 'You can enable notifications in your browser settings.', color: 'warning' })
-  } else {
-    toast.add({ title: 'Connection failed', description: 'Could not reach the server to set up notifications. Check your connection and try again.', color: 'error' })
-  }
-}
-
-async function disableNotifications() {
-  await unsubscribe()
-  toast.add({ title: 'Notifications disabled', color: 'success' })
 }
 
 function disconnectAccount() {
@@ -203,27 +297,26 @@ const tabs = computed(() => [
 
           <div class="flex items-center gap-3 p-3 rounded-lg border border-default">
             <UIcon
-              :name="isPushGranted ? 'i-lucide-bell-ring' : 'i-lucide-bell-off'"
+              :name="statusConfig.icon"
               class="w-5 h-5 shrink-0"
-              :class="isPushGranted ? 'text-green-500' : 'text-muted'"
+              :class="statusConfig.iconClass"
             />
             <div class="flex-1">
               <p class="text-sm font-medium">
-                {{ isPushGranted ? 'Notifications enabled' : isPushDenied ? 'Notifications blocked' : isPushNotSupported ? 'Not supported in this browser' : 'Notifications not enabled' }}
+                {{ statusConfig.label }}
               </p>
               <p class="text-xs text-muted mt-0.5">
-                {{ isPushDenied
-                  ? 'You\'ll need to enable notifications in your browser settings.'
-                  : isPushGranted
-                    ? 'You\'ll receive push notifications for new likes, comments, and group joins.'
-                    : isPushNotSupported
-                      ? 'Your browser doesn\'t support push notifications.'
-                      : 'Enable notifications to get alerted when friends interact with your photos.'
-                }}
+                {{ statusConfig.description }}
+              </p>
+              <p
+                v-if="showIosNote"
+                class="text-xs text-muted mt-1 italic"
+              >
+                Note: Notifications may be delayed while the app is backgrounded (iOS limitation).
               </p>
             </div>
             <UButton
-              v-if="!isPushGranted && !isPushDenied && !isPushNotSupported"
+              v-if="statusConfig.showEnable"
               color="primary"
               size="xs"
               @click="enableNotifications"
@@ -231,13 +324,23 @@ const tabs = computed(() => [
               Enable
             </UButton>
             <UButton
-              v-else-if="isPushGranted"
+              v-else-if="statusConfig.showDisable"
               color="neutral"
               variant="outline"
               size="xs"
               @click="disableNotifications"
             >
               Disable
+            </UButton>
+            <UButton
+              v-else-if="statusConfig.showRetry"
+              color="primary"
+              variant="outline"
+              size="xs"
+              :loading="retrying"
+              @click="retryNotifications"
+            >
+              Retry
             </UButton>
           </div>
         </div>
