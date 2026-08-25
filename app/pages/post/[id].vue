@@ -272,9 +272,9 @@ onUnmounted(() => {
 
     <div
       v-else
-      class="space-y-6 lg:space-y-0 lg:flex lg:gap-8 lg:min-h-[calc(100dvh-8rem-env(safe-area-inset-top))]"
+      class="space-y-6 lg:space-y-0 lg:flex lg:gap-8 lg:min-h-[calc(100dvh-8rem-var(--safe-area-top,env(safe-area-inset-top)))]"
     >
-      <div class="lg:flex-1 lg:min-w-0 order-2 lg:order-1 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100dvh-8rem-env(safe-area-inset-top))]">
+      <div class="lg:flex-1 lg:min-w-0 order-2 lg:order-1 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100dvh-8rem-var(--safe-area-top,env(safe-area-inset-top)))]">
         <NuxtImg
           v-if="post"
           :src="freshPost ? post.url : (thumbnailUrl || post.url)"
@@ -282,7 +282,7 @@ onUnmounted(() => {
           sizes="sm:100vw md:800px lg:50vw"
           format="webp"
           decoding="async"
-          class="max-h-[calc(100dvh-12rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] lg:max-h-full w-auto max-w-full object-contain rounded-xl mx-auto block"
+          class="max-h-[calc(100dvh-12rem-var(--safe-area-top,env(safe-area-inset-top))-var(--safe-area-bottom,env(safe-area-inset-bottom)))] lg:max-h-full w-auto max-w-full object-contain rounded-xl mx-auto block"
           :style="supportsViewTransitionMorph() ? { viewTransitionName: `photo-${post.id}` } : undefined"
         />
         <USkeleton

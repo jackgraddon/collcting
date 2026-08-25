@@ -155,7 +155,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-dvh flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+  <div class="min-h-dvh flex flex-col pt-[var(--safe-area-top,env(safe-area-inset-top))] pb-[var(--safe-area-bottom,env(safe-area-inset-bottom))]">
     <UCard class="w-full max-w-md mx-auto mt-8">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-primary">
