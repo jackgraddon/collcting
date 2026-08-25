@@ -70,7 +70,7 @@ self.addEventListener('notificationclick', (event) => {
   let url = '/'
 
   if (data.type === 'moment') {
-    url = '/?upload=moment'
+    url = '/?moment=capture'
   } else if (data.photoId) {
     url = `/post/${data.photoId}`
   } else if (data.groupId) {

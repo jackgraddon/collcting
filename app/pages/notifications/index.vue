@@ -79,7 +79,7 @@ function notificationText(n: Notification): string {
 }
 
 function notificationLink(n: Notification): string {
-  if (n.type === 'moment') return '/?upload=moment'
+  if (n.type === 'moment') return '/?moment=capture'
   if (n.photoId) return `/post/${n.photoId}`
   if (n.groupId) return `/groups/${n.groupId}`
   return '/'

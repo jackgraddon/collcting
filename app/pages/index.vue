@@ -3,10 +3,8 @@ import { useIntersectionObserver } from '@vueuse/core'
 
 const { on } = useUploadBus()
 const api = useApi()
-const route = useRoute()
-const router = useRouter()
-const { canCapture, activeSupported, isActive } = useMoments()
-const { openMomentModal } = useUploadModal()
+const { canCapture, activeSupported, isActive, activeAccountDrafts, retryAllDrafts } = useMoments()
+const { openMomentModal } = useMomentCaptureModal()
 
 interface FeedState {
   photos: PostData[]
@@ -37,6 +35,11 @@ const visiblePosts = computed(() => [
 const exhausted = computed(() => feedState.value?.nextCursor === null)
 
 const showMomentBanner = computed(() => activeSupported.value && canCapture.value && isActive.value)
+const hasActiveDrafts = computed(() => activeAccountDrafts.value.length > 0)
+
+async function retryDrafts() {
+  await retryAllDrafts()
+}
 
 async function loadInitial() {
   loading.value = true
@@ -91,11 +94,6 @@ async function loadMore() {
 onMounted(async () => {
   await loadInitial()
   await checkForNewPosts()
-
-  if (route.query.upload === 'moment') {
-    openMomentModal()
-    router.replace({ query: {} })
-  }
 })
 
 onActivated(() => {
@@ -173,6 +171,34 @@ useIntersectionObserver(
           Tap to capture your moment
         </p>
       </button>
+    </Transition>
+
+    <!-- Draft retry indicator -->
+    <Transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div
+        v-if="hasActiveDrafts"
+        class="flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-lg bg-warning/5 border border-warning/20"
+      >
+        <div class="flex items-center gap-2">
+          <UIcon name="i-lucide-cloud-off" class="w-4 h-4 text-warning shrink-0" />
+          <span class="text-sm text-muted">Moment capture pending — will retry automatically</span>
+        </div>
+        <UButton
+          color="warning"
+          variant="ghost"
+          size="xs"
+          @click="retryDrafts"
+        >
+          Retry now
+        </UButton>
+      </div>
     </Transition>
 
     <!-- Loading -->

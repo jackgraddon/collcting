@@ -11,8 +11,6 @@ const emit = defineEmits<{
 const toast = useToast()
 const router = useRouter()
 const api = useApi()
-const { momentMode } = useUploadModal()
-const { activeState, remainingSeconds } = useMoments()
 
 const cameraInput = ref<HTMLInputElement | null>(null)
 const libraryInput = ref<HTMLInputElement | null>(null)
@@ -29,19 +27,6 @@ const showCreateGroupDialog = ref(false)
 
 const nonPublicGroups = computed(() => groupsData.value?.groups.filter(g => !g.isPublic) ?? [])
 
-const momentGroups = computed(() => activeState.value?.userMomentsGroups ?? [])
-const displayGroups = computed(() => momentMode.value ? momentGroups.value : nonPublicGroups.value)
-const hasDisplayGroups = computed(() => displayGroups.value.length > 0)
-
-const alreadyCaptured = computed(() => momentMode.value && activeState.value?.capturedToday)
-
-const countdownDisplay = computed(() => {
-  const s = remainingSeconds.value
-  const min = Math.floor(s / 60)
-  const sec = s % 60
-  return `${min}:${sec.toString().padStart(2, '0')}`
-})
-
 watch(() => props.open, async (isOpen) => {
   if (isOpen) {
     selectedGroupIds.value = []
@@ -56,11 +41,7 @@ watch(() => props.open, async (isOpen) => {
   }
 })
 
-const canSubmit = computed(() => {
-  if (!file.value) return false
-  if (alreadyCaptured.value) return false
-  return true
-})
+const canSubmit = computed(() => !!file.value)
 
 function triggerCameraCapture() {
   cameraInput.value?.click()
@@ -113,39 +94,13 @@ async function upload() {
     if (caption.value.trim()) form.append('caption', caption.value.trim())
     form.append('groupIds', JSON.stringify(selectedGroupIds.value))
 
-    if (momentMode.value) {
-      form.append('isMoment', 'true')
-    }
-
     const post = await api.uploadPhoto(form)
 
-    const title = momentMode.value ? 'Moment captured' : 'Photo uploaded'
-    toast.add({ title, color: 'success', icon: 'i-lucide-circle-check' })
+    toast.add({ title: 'Photo uploaded', color: 'success', icon: 'i-lucide-circle-check' })
     emit('uploaded', post as unknown as PostData)
     close()
-  } catch (e: unknown) {
-    if (momentMode.value) {
-      const err = e as { statusCode?: number, data?: { statusMessage?: string } }
-      if (err.statusCode === 409) {
-        toast.add({
-          title: 'Missed the moment',
-          description: err.data?.statusMessage || 'The moment window has closed.',
-          color: 'warning',
-          icon: 'i-lucide-clock'
-        })
-      } else if (err.statusCode === 403) {
-        toast.add({
-          title: 'Moment not available',
-          description: err.data?.statusMessage || 'Moments are not enabled.',
-          color: 'error',
-          icon: 'i-lucide-triangle-alert'
-        })
-      } else {
-        toast.add({ title: 'Upload failed', description: 'Please try again.', color: 'error', icon: 'i-lucide-triangle-alert' })
-      }
-    } else {
-      toast.add({ title: 'Upload failed', description: 'Please try again.', color: 'error', icon: 'i-lucide-triangle-alert' })
-    }
+  } catch {
+    toast.add({ title: 'Upload failed', description: 'Please try again.', color: 'error', icon: 'i-lucide-triangle-alert' })
   } finally {
     compressing.value = false
     uploading.value = false
@@ -161,13 +116,13 @@ async function upload() {
   >
     <template #content>
       <div class="flex flex-col h-full">
-        <div class="flex items-center justify-between px-6 py-4 pt-[calc(env(safe-area-inset-top)+1rem)] border-b border-neutral-200 dark:border-neutral-800 shrink-0">
+        <div class="flex items-center justify-between px-6 py-4 pt-[calc(var(--safe-area-top,env(safe-area-inset-top))+1rem)] border-b border-neutral-200 dark:border-neutral-800 shrink-0">
           <div class="flex items-center gap-2">
             <UIcon
-              :name="momentMode ? 'i-lucide-aperture' : 'i-solar-upload-square-linear'"
+              name="i-solar-upload-square-linear"
               class="w-5 h-5 text-primary"
             />
-            <span class="font-semibold">{{ momentMode ? 'Moment' : 'Upload photo' }}</span>
+            <span class="font-semibold">Upload photo</span>
           </div>
           <UButton
             color="neutral"
@@ -179,146 +134,111 @@ async function upload() {
         </div>
 
         <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          <!-- Moment countdown -->
           <div
-            v-if="momentMode && activeState?.status === 'active' && !alreadyCaptured"
-            class="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-primary/10 border border-primary/20"
+            v-if="preview"
+            class="relative rounded-xl border-2 border-solid border-primary overflow-hidden"
           >
-            <UIcon name="i-lucide-clock" class="w-4 h-4 text-primary" />
-            <span class="text-sm font-semibold text-primary tabular-nums">{{ countdownDisplay }}</span>
-            <span class="text-xs text-muted">remaining</span>
+            <img
+              :src="preview"
+              alt="Preview"
+              class="w-full h-auto max-h-80 object-cover"
+            >
           </div>
 
-          <!-- Already captured state -->
           <div
-            v-if="alreadyCaptured"
-            class="text-center py-8"
+            v-else
+            class="grid grid-cols-2 gap-3"
           >
-            <UIcon
-              name="i-lucide-check-circle"
-              class="w-12 h-12 text-success mx-auto mb-3"
-            />
-            <p class="font-medium">
-              You've already captured your moment today
-            </p>
-            <p class="text-sm text-muted mt-1">
-              Come back tomorrow!
-            </p>
+            <button
+              class="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-700 py-10 text-center transition-colors hover:border-primary hover:bg-primary/5"
+              @click="triggerCameraCapture"
+            >
+              <UIcon
+                name="i-lucide-camera"
+                class="w-8 h-8 text-muted"
+              />
+              <div>
+                <p class="font-medium text-sm">
+                  Take Photo
+                </p>
+                <p class="text-muted text-xs mt-1">
+                  Open camera
+                </p>
+              </div>
+            </button>
+            <button
+              class="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-700 py-10 text-center transition-colors hover:border-primary hover:bg-primary/5"
+              @click="triggerLibraryPicker"
+            >
+              <UIcon
+                name="i-lucide-image"
+                class="w-8 h-8 text-muted"
+              />
+              <div>
+                <p class="font-medium text-sm">
+                  Choose from Library
+                </p>
+                <p class="text-muted text-xs mt-1">
+                  JPEG, PNG, WebP, GIF
+                </p>
+              </div>
+            </button>
           </div>
 
-          <!-- Photo capture / preview -->
-          <template v-if="!alreadyCaptured">
-            <div
-              v-if="preview"
-              class="relative rounded-xl border-2 border-solid overflow-hidden"
-              :class="momentMode ? 'border-primary/50' : 'border-primary'"
-            >
-              <img
-                :src="preview"
-                alt="Preview"
-                class="w-full h-auto max-h-80 object-cover"
-              >
-            </div>
+          <input
+            ref="cameraInput"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            class="hidden"
+            @change="onFileChange"
+          >
+          <input
+            ref="libraryInput"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            class="hidden"
+            @change="onFileChange"
+          >
 
-            <div
-              v-else
-              class="grid grid-cols-2 gap-3"
+          <div
+            v-if="preview"
+            class="flex justify-end"
+          >
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              icon="i-lucide-refresh-cw"
+              @click="triggerLibraryPicker"
             >
-              <button
-                class="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-700 py-10 text-center transition-colors hover:border-primary hover:bg-primary/5"
-                @click="triggerCameraCapture"
-              >
-                <UIcon
-                  name="i-lucide-camera"
-                  class="w-8 h-8 text-muted"
-                />
-                <div>
-                  <p class="font-medium text-sm">
-                    Take Photo
-                  </p>
-                  <p class="text-muted text-xs mt-1">
-                    Open camera
-                  </p>
-                </div>
-              </button>
-              <button
-                class="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-700 py-10 text-center transition-colors hover:border-primary hover:bg-primary/5"
-                @click="triggerLibraryPicker"
-              >
-                <UIcon
-                  name="i-lucide-image"
-                  class="w-8 h-8 text-muted"
-                />
-                <div>
-                  <p class="font-medium text-sm">
-                    Choose from Library
-                  </p>
-                  <p class="text-muted text-xs mt-1">
-                    JPEG, PNG, WebP, GIF
-                  </p>
-                </div>
-              </button>
-            </div>
+              Change photo
+            </UButton>
+          </div>
 
-            <input
-              ref="cameraInput"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              class="hidden"
-              @change="onFileChange"
-            >
-            <input
-              ref="libraryInput"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              class="hidden"
-              @change="onFileChange"
-            >
-
-            <div
-              v-if="preview"
-              class="flex justify-end"
-            >
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                icon="i-lucide-refresh-cw"
-                @click="triggerLibraryPicker"
-              >
-                Change photo
-              </UButton>
-            </div>
-
-            <UTextarea
-              v-model="caption"
-              placeholder="Add a caption..."
-              :rows="3"
-              :maxlength="500"
-              class="w-full"
-            />
-            <p class="text-xs text-muted text-right -mt-2">
-              {{ caption.length }} / 500
-            </p>
-          </template>
+          <UTextarea
+            v-model="caption"
+            placeholder="Add a caption..."
+            :rows="3"
+            :maxlength="500"
+            class="w-full"
+          />
+          <p class="text-xs text-muted text-right -mt-2">
+            {{ caption.length }} / 500
+          </p>
         </div>
 
-        <div
-          v-if="!alreadyCaptured"
-          class="border-t border-neutral-200 dark:border-neutral-800 px-6 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] space-y-4 shrink-0"
-        >
-          <!-- Group selector -->
+        <div class="border-t border-neutral-200 dark:border-neutral-800 px-6 py-4 pb-[calc(var(--safe-area-bottom,env(safe-area-inset-bottom))+1rem)] space-y-4 shrink-0">
           <div
-            v-if="hasDisplayGroups"
+            v-if="nonPublicGroups.length > 0"
             class="space-y-2"
           >
             <p class="text-xs font-medium text-muted uppercase tracking-wider">
-              {{ momentMode ? 'Share to' : 'Visible to' }}
+              Visible to
             </p>
             <div class="space-y-1.5">
               <label
-                v-for="group in displayGroups"
+                v-for="group in nonPublicGroups"
                 :key="group.id"
                 class="flex items-center gap-2.5 cursor-pointer group"
               >
@@ -337,27 +257,24 @@ async function upload() {
               </label>
             </div>
             <p class="text-xs text-muted">
-              {{ momentMode ? 'Only groups with moments enabled are shown.' : 'Visible only to members of selected groups. Uncheck all to post publicly.' }}
+              Visible only to members of selected groups. Uncheck all to post publicly.
             </p>
           </div>
 
           <div
-            v-else-if="!hasDisplayGroups && !loadingGroups"
+            v-else-if="!loadingGroups"
             class="rounded-lg bg-muted/30 p-3 space-y-2"
           >
             <div class="flex items-center gap-2">
               <UIcon
-                :name="momentMode ? 'i-lucide-aperture' : 'i-solar-global-linear'"
+                name="i-solar-global-linear"
                 class="w-4 h-4 text-muted"
               />
               <p class="text-xs text-muted">
-                {{ momentMode ? 'No groups available for moments' : 'Visible to everyone on this server' }}
+                Visible to everyone on this server
               </p>
             </div>
-            <p
-              v-if="!momentMode"
-              class="text-xs text-muted"
-            >
+            <p class="text-xs text-muted">
               Want to share privately?
               <button
                 class="text-primary hover:underline font-medium"
@@ -382,8 +299,8 @@ async function upload() {
               variant="solid"
               :loading="uploading"
               :disabled="!canSubmit"
-              :label="compressing ? 'Processing...' : (momentMode ? 'Capture' : 'Upload')"
-              :icon="momentMode ? 'i-lucide-aperture' : 'i-solar-upload-square-linear'"
+              :label="compressing ? 'Processing...' : 'Upload'"
+              icon="i-solar-upload-square-linear"
               @click="upload"
             />
           </div>

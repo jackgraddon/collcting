@@ -1,22 +1,25 @@
-interface MomentCache {
+interface MomentAccountState {
   accountId: string
-  state: MomentState | null
+  serverUrl: string
   supported: boolean
+  state: MomentState | null
   lastFetched: number
 }
 
-const ACTIVE_POLL_MS = 30_000
-const BACKGROUND_POLL_MS = 30 * 60_000
+const ACTIVE_POLL_MS = 5_000
+const INACTIVE_POLL_MS = 30_000
 
 export function useMoments() {
   const { accounts, activeAccountId } = useAccounts()
 
-  const cache = useState<Record<string, MomentCache>>('collct-moments-cache', () => ({}))
+  const cache = useState<Record<string, MomentAccountState>>('collct-moments-cache', () => ({}))
+  const activeDraft = ref<MomentDraft | null>(null)
+  const allDrafts = ref<MomentDraft[]>([])
 
   let activeTimer: ReturnType<typeof setInterval> | null = null
-  let backgroundTimer: ReturnType<typeof setInterval> | null = null
+  let inactiveTimer: ReturnType<typeof setInterval> | null = null
 
-  async function fetchMomentState(account: CollctAccount): Promise<MomentCache> {
+  async function fetchMomentState(account: CollctAccount): Promise<MomentAccountState> {
     try {
       const state = await $api<MomentState>('/api/moments/today', {
         serverUrl: account.serverUrl,
@@ -24,15 +27,17 @@ export function useMoments() {
       })
       return {
         accountId: account.id,
+        serverUrl: account.serverUrl,
+        supported: state.status !== 'disabled' || state.enabled,
         state,
-        supported: true,
         lastFetched: Date.now()
       }
     } catch {
       return {
         accountId: account.id,
-        state: null,
+        serverUrl: account.serverUrl,
         supported: false,
+        state: null,
         lastFetched: Date.now()
       }
     }
@@ -83,22 +88,102 @@ export function useMoments() {
     }
   }
 
-  function startBackgroundPolling() {
-    stopBackgroundPolling()
-    backgroundTimer = setInterval(() => {
+  function startInactivePolling() {
+    stopInactivePolling()
+    inactiveTimer = setInterval(() => {
       for (const acct of accounts.value) {
         if (acct.id !== activeAccountId.value) {
           refreshAccount(acct.id)
         }
       }
-    }, BACKGROUND_POLL_MS)
+    }, INACTIVE_POLL_MS)
   }
 
-  function stopBackgroundPolling() {
-    if (backgroundTimer) {
-      clearInterval(backgroundTimer)
-      backgroundTimer = null
+  function stopInactivePolling() {
+    if (inactiveTimer) {
+      clearInterval(inactiveTimer)
+      inactiveTimer = null
     }
+  }
+
+  async function loadDrafts() {
+    if (!import.meta.client) return
+    try {
+      allDrafts.value = await momentDrafts.getAll()
+    } catch {
+      allDrafts.value = []
+    }
+  }
+
+  async function saveDraft(draft: MomentDraft) {
+    await momentDrafts.save(draft)
+    activeDraft.value = draft
+    if (!allDrafts.value.find(d => d.id === draft.id)) {
+      allDrafts.value.push(draft)
+    }
+  }
+
+  async function removeDraft(id: string) {
+    await momentDrafts.remove(id)
+    if (activeDraft.value?.id === id) {
+      activeDraft.value = null
+    }
+    allDrafts.value = allDrafts.value.filter(d => d.id !== id)
+  }
+
+  async function retryAllDrafts() {
+    const { activeAccount } = useAccounts()
+    if (!activeAccount.value) return
+
+    const acctDrafts = allDrafts.value.filter(
+      d => d.accountId === activeAccount.value!.id && d.status !== 'retrying'
+    )
+
+    for (const draft of acctDrafts) {
+      await updateDraft(draft.id, { status: 'retrying', attempts: draft.attempts + 1 })
+
+      try {
+        const compressed = await compressImage(draft.photo)
+        const form = new FormData()
+        form.append('photo', compressed)
+        form.append('groupIds', JSON.stringify(draft.selectedGroupIds))
+        form.append('isMoment', 'true')
+
+        await $api<{ id: number }>('/api/photos', {
+          method: 'post',
+          body: form,
+          serverUrl: draft.serverUrl,
+          token: activeAccount.value.token
+        })
+
+        await removeDraft(draft.id)
+      } catch {
+        await updateDraft(draft.id, { status: 'failed', lastError: 'Upload failed' })
+      }
+    }
+  }
+
+  async function updateDraft(id: string, updates: Partial<MomentDraft>) {
+    await momentDrafts.update(id, updates)
+    const draft = allDrafts.value.find(d => d.id === id)
+    if (draft) {
+      Object.assign(draft, updates)
+    }
+    if (activeDraft.value?.id === id) {
+      Object.assign(activeDraft.value, updates)
+    }
+  }
+
+  const hasDrafts = computed(() => allDrafts.value.length > 0)
+
+  const activeAccountDrafts = computed(() => {
+    const id = activeAccountId.value
+    if (!id) return []
+    return allDrafts.value.filter(d => d.accountId === id)
+  })
+
+  function getStateForAccount(accountId: string) {
+    return computed(() => cache.value[accountId] ?? null)
   }
 
   watch(activeAccountId, async (newId, oldId) => {
@@ -106,6 +191,7 @@ export function useMoments() {
     if (newId) {
       await refreshActive()
       startActivePolling()
+      activeDraft.value = allDrafts.value.find(d => d.accountId === newId) ?? null
     }
   })
 
@@ -120,24 +206,38 @@ export function useMoments() {
         }
       }
     }
-    onMounted(() => document.addEventListener('visibilitychange', onVisibilityChange))
-    onUnmounted(() => document.removeEventListener('visibilitychange', onVisibilityChange))
+    const onOnline = () => {
+      if (allDrafts.value.length > 0) {
+        retryAllDrafts()
+      }
+    }
+    onMounted(() => {
+      document.addEventListener('visibilitychange', onVisibilityChange)
+      window.addEventListener('online', onOnline)
+    })
+    onUnmounted(() => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('online', onOnline)
+    })
   }
 
   onMounted(async () => {
+    await loadDrafts()
+    if (allDrafts.value.length > 0) {
+      retryAllDrafts()
+    }
     await refreshActive()
     startActivePolling()
-    startBackgroundPolling()
+    startInactivePolling()
+    if (activeAccountId.value) {
+      activeDraft.value = allDrafts.value.find(d => d.accountId === activeAccountId.value) ?? null
+    }
   })
 
   onUnmounted(() => {
     stopActivePolling()
-    stopBackgroundPolling()
+    stopInactivePolling()
   })
-
-  function getStateForAccount(accountId: string) {
-    return computed(() => cache.value[accountId] ?? null)
-  }
 
   return {
     activeState,
@@ -145,8 +245,17 @@ export function useMoments() {
     isActive,
     canCapture,
     remainingSeconds,
+    activeDraft,
+    allDrafts,
+    hasDrafts,
+    activeAccountDrafts,
     getStateForAccount,
     refreshActive,
-    refreshAccount
+    refreshAccount,
+    saveDraft,
+    removeDraft,
+    updateDraft,
+    retryAllDrafts,
+    loadDrafts
   }
 }

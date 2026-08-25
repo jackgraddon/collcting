@@ -136,4 +136,17 @@ declare global {
       isPublic: boolean
     }[]
   }
+
+  interface MomentDraft {
+    id: string
+    accountId: string
+    serverUrl: string
+    photo: Blob
+    capturedAt: string
+    selectedGroupIds: number[]
+    createdAt: number
+    status: 'pending' | 'retrying' | 'failed'
+    attempts: number
+    lastError?: string
+  }
 }
