@@ -1,7 +1,6 @@
 <script setup>
 const route = useRoute()
 const router = useRouter()
-const { canCapture } = useMoments()
 const { open: momentOpen, openMomentModal, closeModal: closeMomentModal } = useMomentCaptureModal()
 
 useHead({
@@ -18,7 +17,7 @@ useSeoMeta({
 })
 
 watch(() => route.query.moment, (val) => {
-  if (val === 'capture' && canCapture.value) {
+  if (val === 'capture') {
     openMomentModal()
     router.replace({ query: {} })
   }
