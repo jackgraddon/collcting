@@ -181,35 +181,8 @@ async function react(comment: CommentItem, type: ReactionType) {
   }
 }
 
-const POLL_INTERVAL = 10_000
-let commentsTimer: ReturnType<typeof setInterval> | null = null
-
-function startPolling() {
-  if (commentsTimer) return
-  commentsTimer = setInterval(fetchComments, POLL_INTERVAL)
-}
-
-function stopPolling() {
-  if (commentsTimer) clearInterval(commentsTimer)
-  commentsTimer = null
-}
-
 onMounted(async () => {
   await fetchComments()
-  startPolling()
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      stopPolling()
-    } else {
-      fetchComments()
-      startPolling()
-    }
-  })
-})
-
-onUnmounted(() => {
-  stopPolling()
 })
 
 function formatRelative(dateStr: string) {

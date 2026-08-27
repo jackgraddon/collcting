@@ -199,35 +199,8 @@ async function saveCaption() {
   }
 }
 
-const POLL_INTERVAL = 10_000
-let likesTimer: ReturnType<typeof setInterval> | null = null
-
-function startPolling() {
-  if (likesTimer) return
-  likesTimer = setInterval(fetchLikes, POLL_INTERVAL)
-}
-
-function stopPolling() {
-  if (likesTimer) clearInterval(likesTimer)
-  likesTimer = null
-}
-
 onMounted(async () => {
   await fetchLikes()
-  startPolling()
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      stopPolling()
-    } else {
-      fetchLikes()
-      startPolling()
-    }
-  })
-})
-
-onUnmounted(() => {
-  stopPolling()
 })
 </script>
 
@@ -349,7 +322,10 @@ onUnmounted(() => {
           v-if="post.isMoment"
           class="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20"
         >
-          <UIcon name="i-lucide-aperture" class="w-4 h-4 text-primary shrink-0" />
+          <UIcon
+            name="i-lucide-aperture"
+            class="w-4 h-4 text-primary shrink-0"
+          />
           <div class="min-w-0">
             <p class="text-xs font-medium text-primary">
               Moment

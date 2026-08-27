@@ -38,18 +38,12 @@
       </div>
     </div>
   </header>
-
-  <CollctUploadModal
-    v-model:open="uploadModal.open.value"
-    @uploaded="onUploaded"
-  />
 </template>
 
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
-const { emit } = useUploadBus()
 const uploadModal = useUploadModal()
 const { accounts } = useAccounts()
 
@@ -73,9 +67,4 @@ const items = computed<NavigationMenuItem[]>(() => [
     active: route.path.startsWith('/settings')
   }
 ])
-
-function onUploaded(post: PostData) {
-  uploadModal.closeModal()
-  emit(post)
-}
 </script>

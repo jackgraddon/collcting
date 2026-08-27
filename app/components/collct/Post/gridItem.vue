@@ -41,7 +41,10 @@
       v-if="isMoment"
       class="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center"
     >
-      <UIcon name="i-lucide-aperture" class="w-3.5 h-3.5 text-white" />
+      <UIcon
+        name="i-lucide-aperture"
+        class="w-3.5 h-3.5 text-white"
+      />
     </div>
 
     <CollctPostGroupChips

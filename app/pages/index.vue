@@ -1,38 +1,26 @@
 <script lang="ts" setup>
 import { useIntersectionObserver } from '@vueuse/core'
 
-const { on } = useUploadBus()
-const api = useApi()
 const { canCapture, activeSupported, isActive, activeAccountDrafts, retryAllDrafts } = useMoments()
 const { openMomentModal } = useMomentCaptureModal()
 
-interface FeedState {
-  photos: PostData[]
-  nextCursor: number | null
-}
+const {
+  photos,
+  nextCursor,
+  isLoading,
+  loadInitial,
+  loadMore: loadMoreFeed,
+  refresh,
+  startPolling
+} = useFeedPolling()
 
-const feedState = ref<FeedState | null>(null)
-const loading = ref(true)
-const loadingMore = ref(false)
 const loadMoreTrigger = ref(null)
 
-const appendedPosts = ref<PostData[]>([])
-const pendingNewPosts = ref<PostData[]>([])
-const newPostCount = computed(() => pendingNewPosts.value.length)
-
 const { pullDistance, refreshing: ptrRefreshing } = usePullToRefresh(async () => {
-  pendingNewPosts.value = []
-  const fresh = await api.getFeed({ limit: 20 })
-  feedState.value = fresh
+  await refresh()
 })
 
-const visiblePosts = computed(() => [
-  ...appendedPosts.value,
-  ...pendingNewPosts.value,
-  ...(feedState.value?.photos ?? [])
-])
-
-const exhausted = computed(() => feedState.value?.nextCursor === null)
+const exhausted = computed(() => nextCursor.value === null)
 
 const showMomentBanner = computed(() => activeSupported.value && canCapture.value && isActive.value)
 const hasActiveDrafts = computed(() => activeAccountDrafts.value.length > 0)
@@ -41,51 +29,13 @@ async function retryDrafts() {
   await retryAllDrafts()
 }
 
-async function loadInitial() {
-  loading.value = true
-  try {
-    feedState.value = await api.getFeed({ limit: 20 })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function checkForNewPosts() {
-  if (!feedState.value?.photos.length) return
-  try {
-    const newest = feedState.value.photos[0]
-    if (!newest) return
-    const newestTime = new Date(newest.createdAt).getTime() + 1
-    const newer = await api.getFeed({ limit: 50, after: newestTime })
-    if (newer.photos.length) {
-      pendingNewPosts.value = newer.photos
-    }
-  } catch {
-    // Silently ignore
-  }
-}
-
-function showNewPosts() {
-  if (feedState.value && pendingNewPosts.value.length) {
-    feedState.value = {
-      ...feedState.value,
-      photos: [...pendingNewPosts.value, ...feedState.value.photos]
-    }
-    pendingNewPosts.value = []
-  }
-}
+const loadingMore = ref(false)
 
 async function loadMore() {
-  if (loadingMore.value || !feedState.value?.nextCursor) return
+  if (loadingMore.value || !nextCursor.value) return
   loadingMore.value = true
   try {
-    const result = await api.getFeed({ limit: 20, before: feedState.value.nextCursor })
-    if (feedState.value) {
-      feedState.value = {
-        photos: [...feedState.value.photos, ...result.photos],
-        nextCursor: result.nextCursor
-      }
-    }
+    await loadMoreFeed()
   } finally {
     loadingMore.value = false
   }
@@ -93,14 +43,8 @@ async function loadMore() {
 
 onMounted(async () => {
   await loadInitial()
-  await checkForNewPosts()
+  startPolling()
 })
-
-onActivated(() => {
-  checkForNewPosts()
-})
-
-on(post => appendedPosts.value.unshift(post))
 
 useIntersectionObserver(
   loadMoreTrigger,
@@ -131,24 +75,6 @@ useIntersectionObserver(
       </div>
     </div>
 
-    <!-- New posts banner -->
-    <Transition
-      enter-active-class="transition ease-out duration-200"
-      enter-from-class="opacity-0 -translate-y-2"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition ease-in duration-150"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 -translate-y-2"
-    >
-      <button
-        v-if="newPostCount > 0"
-        class="w-full mb-4 py-2 px-4 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
-        @click="showNewPosts"
-      >
-        {{ newPostCount }} new {{ newPostCount === 1 ? 'post' : 'posts' }} — tap to see
-      </button>
-    </Transition>
-
     <!-- Moment capture banner -->
     <Transition
       enter-active-class="transition ease-out duration-200"
@@ -164,7 +90,10 @@ useIntersectionObserver(
         @click="openMomentModal"
       >
         <div class="flex items-center justify-center gap-2 mb-1">
-          <UIcon name="i-lucide-aperture" class="w-5 h-5 text-primary" />
+          <UIcon
+            name="i-lucide-aperture"
+            class="w-5 h-5 text-primary"
+          />
           <span class="font-semibold text-primary">Moment is active!</span>
         </div>
         <p class="text-sm text-muted">
@@ -187,7 +116,10 @@ useIntersectionObserver(
         class="flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-lg bg-warning/5 border border-warning/20"
       >
         <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-cloud-off" class="w-4 h-4 text-warning shrink-0" />
+          <UIcon
+            name="i-lucide-cloud-off"
+            class="w-4 h-4 text-warning shrink-0"
+          />
           <span class="text-sm text-muted">Moment capture pending — will retry automatically</span>
         </div>
         <UButton
@@ -203,7 +135,7 @@ useIntersectionObserver(
 
     <!-- Loading -->
     <div
-      v-if="loading"
+      v-if="isLoading"
       class="flex justify-center py-12"
     >
       <UProgress />
@@ -211,7 +143,7 @@ useIntersectionObserver(
 
     <!-- Empty state -->
     <div
-      v-else-if="visiblePosts.length === 0"
+      v-else-if="photos.length === 0"
       class="text-center py-12 text-muted"
     >
       <p class="text-lg">
@@ -226,7 +158,7 @@ useIntersectionObserver(
     <CollctPostGrid
       v-else
       v-slot="{ post }"
-      :posts="visiblePosts"
+      :posts="photos"
     >
       <CollctPostGridItem :post-data="post" />
     </CollctPostGrid>
@@ -241,7 +173,7 @@ useIntersectionObserver(
         class="h-8 w-32"
       />
       <p
-        v-else-if="exhausted && visiblePosts.length > 0"
+        v-else-if="exhausted && photos.length > 0"
         class="text-sm text-neutral-400"
       >
         You're all caught up!

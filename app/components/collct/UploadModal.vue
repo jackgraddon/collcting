@@ -1,6 +1,9 @@
 <script lang="ts" setup>
 const props = defineProps<{
   open: boolean
+  momentMode?: boolean
+  prefillPhoto?: File | null
+  momentCapturedAt?: string
 }>()
 
 const emit = defineEmits<{
@@ -11,6 +14,8 @@ const emit = defineEmits<{
 const toast = useToast()
 const router = useRouter()
 const api = useApi()
+const { activeAccount } = useAccounts()
+const { saveDraft, activeState } = useMoments()
 
 const cameraInput = ref<HTMLInputElement | null>(null)
 const libraryInput = ref<HTMLInputElement | null>(null)
@@ -27,9 +32,23 @@ const showCreateGroupDialog = ref(false)
 
 const nonPublicGroups = computed(() => groupsData.value?.groups.filter(g => !g.isPublic) ?? [])
 
+const displayGroups = computed(() => nonPublicGroups.value)
+const hasDisplayGroups = computed(() => displayGroups.value.length > 0)
+
 watch(() => props.open, async (isOpen) => {
   if (isOpen) {
     selectedGroupIds.value = []
+    caption.value = ''
+
+    if (props.prefillPhoto) {
+      file.value = props.prefillPhoto
+      preview.value = URL.createObjectURL(props.prefillPhoto)
+    } else {
+      file.value = null
+      if (preview.value) URL.revokeObjectURL(preview.value)
+      preview.value = null
+    }
+
     loadingGroups.value = true
     try {
       groupsData.value = await api.getGroups()
@@ -83,6 +102,16 @@ function goToGroups() {
 async function upload() {
   if (!file.value || !canSubmit.value) return
 
+  if (props.momentMode && activeState.value?.capturedToday) {
+    toast.add({
+      title: 'Already captured today',
+      description: 'You\'ve already posted your moment for today.',
+      color: 'warning',
+      icon: 'i-lucide-clock'
+    })
+    return
+  }
+
   uploading.value = true
   try {
     compressing.value = true
@@ -94,17 +123,72 @@ async function upload() {
     if (caption.value.trim()) form.append('caption', caption.value.trim())
     form.append('groupIds', JSON.stringify(selectedGroupIds.value))
 
+    if (props.momentMode) {
+      form.append('isMoment', 'true')
+      if (props.momentCapturedAt) {
+        form.append('momentCapturedAt', props.momentCapturedAt)
+      }
+    }
+
     const post = await api.uploadPhoto(form)
 
-    toast.add({ title: 'Photo uploaded', color: 'success', icon: 'i-lucide-circle-check' })
+    const title = props.momentMode ? 'Moment captured' : 'Photo uploaded'
+    toast.add({ title, color: 'success', icon: 'i-lucide-circle-check' })
     emit('uploaded', post as unknown as PostData)
     close()
-  } catch {
-    toast.add({ title: 'Upload failed', description: 'Please try again.', color: 'error', icon: 'i-lucide-triangle-alert' })
+  } catch (e: unknown) {
+    if (props.momentMode) {
+      const err = e as { statusCode?: number, data?: { statusMessage?: string } }
+      if (err.statusCode === 409) {
+        toast.add({
+          title: 'Missed the moment',
+          description: err.data?.statusMessage || 'The moment window has closed.',
+          color: 'warning',
+          icon: 'i-lucide-clock'
+        })
+      } else if (err.statusCode === 403) {
+        toast.add({
+          title: 'Moment not available',
+          description: err.data?.statusMessage || 'Moments are not enabled.',
+          color: 'error',
+          icon: 'i-lucide-triangle-alert'
+        })
+      } else {
+        await saveOfflineDraft()
+      }
+    } else {
+      toast.add({ title: 'Upload failed', description: 'Please try again.', color: 'error', icon: 'i-lucide-triangle-alert' })
+    }
   } finally {
     compressing.value = false
     uploading.value = false
   }
+}
+
+async function saveOfflineDraft() {
+  if (!file.value || !activeAccount.value) return
+
+  const draft: MomentDraft = {
+    id: crypto.randomUUID(),
+    accountId: activeAccount.value.id,
+    serverUrl: activeAccount.value.serverUrl,
+    photo: file.value,
+    capturedAt: props.momentCapturedAt || new Date().toISOString(),
+    selectedGroupIds: [...selectedGroupIds.value],
+    createdAt: Date.now(),
+    status: 'pending',
+    attempts: 0
+  }
+
+  await saveDraft(draft)
+
+  toast.add({
+    title: 'Moment capture saved',
+    description: 'Will retry when connection is restored.',
+    color: 'warning',
+    icon: 'i-lucide-cloud-off'
+  })
+  close()
 }
 </script>
 
@@ -119,10 +203,10 @@ async function upload() {
         <div class="flex items-center justify-between px-6 py-4 pt-[calc(var(--safe-area-top,env(safe-area-inset-top))+1rem)] border-b border-neutral-200 dark:border-neutral-800 shrink-0">
           <div class="flex items-center gap-2">
             <UIcon
-              name="i-solar-upload-square-linear"
+              :name="momentMode ? 'i-lucide-aperture' : 'i-solar-upload-square-linear'"
               class="w-5 h-5 text-primary"
             />
-            <span class="font-semibold">Upload photo</span>
+            <span class="font-semibold">{{ momentMode ? 'Share moment' : 'Upload photo' }}</span>
           </div>
           <UButton
             color="neutral"
@@ -136,7 +220,8 @@ async function upload() {
         <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           <div
             v-if="preview"
-            class="relative rounded-xl border-2 border-solid border-primary overflow-hidden"
+            class="relative rounded-xl border-2 border-solid overflow-hidden"
+            :class="momentMode ? 'border-primary/50' : 'border-primary'"
           >
             <img
               :src="preview"
@@ -230,15 +315,15 @@ async function upload() {
 
         <div class="border-t border-neutral-200 dark:border-neutral-800 px-6 py-4 pb-[calc(var(--safe-area-bottom,env(safe-area-inset-bottom))+1rem)] space-y-4 shrink-0">
           <div
-            v-if="nonPublicGroups.length > 0"
+            v-if="hasDisplayGroups"
             class="space-y-2"
           >
             <p class="text-xs font-medium text-muted uppercase tracking-wider">
-              Visible to
+              {{ momentMode ? 'Share to' : 'Visible to' }}
             </p>
             <div class="space-y-1.5">
               <label
-                v-for="group in nonPublicGroups"
+                v-for="group in displayGroups"
                 :key="group.id"
                 class="flex items-center gap-2.5 cursor-pointer group"
               >
@@ -257,7 +342,7 @@ async function upload() {
               </label>
             </div>
             <p class="text-xs text-muted">
-              Visible only to members of selected groups. Uncheck all to post publicly.
+              {{ momentMode ? 'Share to groups for your moment.' : 'Visible only to members of selected groups. Uncheck all to post publicly.' }}
             </p>
           </div>
 
@@ -267,14 +352,17 @@ async function upload() {
           >
             <div class="flex items-center gap-2">
               <UIcon
-                name="i-solar-global-linear"
+                :name="momentMode ? 'i-lucide-aperture' : 'i-solar-global-linear'"
                 class="w-4 h-4 text-muted"
               />
               <p class="text-xs text-muted">
-                Visible to everyone on this server
+                {{ momentMode ? 'No groups available for moments' : 'Visible to everyone on this server' }}
               </p>
             </div>
-            <p class="text-xs text-muted">
+            <p
+              v-if="!momentMode"
+              class="text-xs text-muted"
+            >
               Want to share privately?
               <button
                 class="text-primary hover:underline font-medium"
@@ -299,8 +387,8 @@ async function upload() {
               variant="solid"
               :loading="uploading"
               :disabled="!canSubmit"
-              :label="compressing ? 'Processing...' : 'Upload'"
-              icon="i-solar-upload-square-linear"
+              :label="compressing ? 'Processing...' : (momentMode ? 'Post' : 'Upload')"
+              :icon="momentMode ? 'i-lucide-aperture' : 'i-solar-upload-square-linear'"
               @click="upload"
             />
           </div>

@@ -3,7 +3,6 @@ const instanceName = 'Collct'
 const instanceDescription = 'A friends-first photo sharing app. No algorithm. No tracking. No strangers.'
 
 export default defineNuxtConfig({
-
   modules: [
     '@nuxt/fonts',
     '@vite-pwa/nuxt',
@@ -41,6 +40,18 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   compatibilityDate: '2026-06-30',
 
+  vite: {
+    server: {
+      proxy: {
+        '/api/blob': {
+          target: 'https://localhost:3000',
+          secure: false,
+          changeOrigin: true
+        }
+      }
+    }
+  },
+
   eslint: {
     config: {
       stylistic: {
@@ -50,7 +61,17 @@ export default defineNuxtConfig({
     }
   },
 
-  image: { provider: 'vercel' },
+  image: {
+    provider: import.meta.dev ? 'ipx' : 'vercel',
+    screens: {
+      'xs': 320,
+      'sm': 640,
+      'md': 768,
+      'lg': 1024,
+      'xl': 1280,
+      '2xl': 1536
+    }
+  },
 
   pwa: {
     registerType: 'autoUpdate',
