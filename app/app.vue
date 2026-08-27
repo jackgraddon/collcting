@@ -6,6 +6,7 @@ const { open: momentOpen, openMomentModal, onCaptured } = useMomentCaptureModal(
 const uploadModal = useUploadModal()
 const { canCapture, isActive, capturedToday } = useMoments()
 const toast = useToast()
+const { public: { isBeta } } = useRuntimeConfig()
 
 useHead({
   htmlAttrs: {
@@ -54,6 +55,13 @@ function onUploaded(post) {
 
 <template>
   <UApp>
+    <div
+      v-if="isBeta"
+      class="bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 text-center text-xs py-1.5 px-4"
+    >
+      Beta — You're using a development version. Things may break.
+    </div>
+
     <CollctHeader />
 
     <UMain class="px-4 pb-[calc(3rem+var(--safe-area-bottom,env(safe-area-inset-bottom)))] lg:pb-0">

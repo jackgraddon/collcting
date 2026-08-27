@@ -38,6 +38,12 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+
+  runtimeConfig: {
+    public: {
+      isBeta: true
+    }
+  },
   compatibilityDate: '2026-06-30',
 
   vite: {
