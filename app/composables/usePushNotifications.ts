@@ -1,8 +1,10 @@
 type NotificationStatus = 'unsupported' | 'disabled' | 'pending' | 'active' | 'stale' | 'error'
 
 const SUBSCRIPTION_STORAGE_PREFIX = 'collct-push-sub-'
+const PUSH_SUBSCRIPTION_KEY = 'collct-push-subscription'
 const DISMISS_KEY = 'collct-push-prompt-dismissed'
 const DISMISS_DAYS = 7
+const VALIDATE_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
 
 export function usePushNotifications() {
   const api = useApi()
@@ -64,16 +66,22 @@ export function usePushNotifications() {
     if (key) {
       if (value) {
         localStorage.setItem(key, 'true')
-        if (activeAccount.value) {
-          localStorage.setItem('collct-push-account-active', JSON.stringify({
-            serverUrl: activeAccount.value.serverUrl,
-            token: activeAccount.value.token
-          }))
-        }
       } else {
         localStorage.removeItem(key)
-        localStorage.removeItem('collct-push-account-active')
       }
+    }
+  }
+
+  function storeSwSubscriptionCredentials(endpoint: string) {
+    if (!import.meta.client || !activeAccount.value) return
+    try {
+      localStorage.setItem(PUSH_SUBSCRIPTION_KEY, JSON.stringify({
+        endpoint,
+        serverUrl: activeAccount.value.serverUrl,
+        token: activeAccount.value.token
+      }))
+    } catch {
+      // Storage full or unavailable
     }
   }
 
@@ -91,15 +99,8 @@ export function usePushNotifications() {
 
   async function fetchVapidKey(): Promise<string | null> {
     try {
-      const raw = await $fetch<string>('/api/notifications/vapid-key', {
-        baseURL: activeAccount.value!.serverUrl,
-        method: 'get',
-        headers: { Authorization: `Bearer ${activeAccount.value!.token}` },
-        responseType: 'text'
-      })
-      if (!raw) return null
-      const parsed = JSON.parse(raw)
-      return parsed.vapidPublicKey ?? parsed.publicKey ?? null
+      const result = await api.getVapidPublicKey()
+      return result.vapidPublicKey ?? null
     } catch {
       return null
     }
@@ -120,6 +121,7 @@ export function usePushNotifications() {
           await api.subscribePush(existing.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
           hasLocalSubscription.value = true
           setSubscribedForAccount(true)
+          storeSwSubscriptionCredentials(existing.endpoint)
           return true
         } catch {
           await existing.unsubscribe()
@@ -135,6 +137,7 @@ export function usePushNotifications() {
 
       hasLocalSubscription.value = true
       setSubscribedForAccount(true)
+      storeSwSubscriptionCredentials(subscription.endpoint)
       return true
     } catch (err) {
       console.error('[push] Subscribe failed:', err)
@@ -182,6 +185,7 @@ export function usePushNotifications() {
       await api.subscribePush(subscription.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
       hasLocalSubscription.value = true
       setSubscribedForAccount(true)
+      storeSwSubscriptionCredentials(subscription.endpoint)
       return true
     } catch {
       return false
@@ -209,6 +213,7 @@ export function usePushNotifications() {
 
       hasLocalSubscription.value = true
       setSubscribedForAccount(true)
+      storeSwSubscriptionCredentials(subscription.endpoint)
       return true
     } catch (err) {
       console.error('[push] Recovery failed:', err)
@@ -259,6 +264,9 @@ export function usePushNotifications() {
       const subscription = await registration.pushManager.getSubscription()
       hasLocalSubscription.value = !!subscription
       permission.value = Notification.permission
+      if (subscription) {
+        storeSwSubscriptionCredentials(subscription.endpoint)
+      }
     } catch {
       // SW not ready yet
     }
@@ -292,15 +300,26 @@ export function usePushNotifications() {
     }
   }
 
+  let validateTimer: ReturnType<typeof setInterval> | null = null
+
   init()
 
   if (import.meta.client) {
     document.addEventListener('visibilitychange', onForeground)
+    validateTimer = setInterval(() => {
+      if (!document.hidden && activeAccount.value && isSupported.value) {
+        onForeground()
+      }
+    }, VALIDATE_INTERVAL_MS)
   }
 
   onUnmounted(() => {
     if (import.meta.client) {
       document.removeEventListener('visibilitychange', onForeground)
+      if (validateTimer) {
+        clearInterval(validateTimer)
+        validateTimer = null
+      }
     }
   })
 

@@ -172,7 +172,7 @@ export function useApi() {
     },
 
     async dismissNotification(id: number) {
-      return $api<{ ok: boolean }>(`/api/notifications/${id}`, { method: 'delete' })
+      return $api<{ ok: boolean }>(`/api/notifications/${id}/dismiss`, { method: 'patch' })
     },
 
     // Push Notifications

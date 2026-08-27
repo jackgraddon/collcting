@@ -80,8 +80,10 @@ function notificationText(n: Notification): string {
       return ' liked your photo'
     case 'comment':
       return ' commented on your photo'
-    case 'group_invite':
-      return ' invited you to a group'
+    case 'group_join':
+      return ' joined a group'
+    case 'new_post':
+      return ' posted a new photo'
     case 'moment':
       return ' — your moment is ready!'
     default:

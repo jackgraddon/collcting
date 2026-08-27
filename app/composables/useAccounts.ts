@@ -1,5 +1,6 @@
 const STORAGE_KEY = 'collct_accounts'
 const ACTIVE_KEY = 'collct_active_account'
+const PUSH_SUB_KEY_PREFIX = 'collct-push-sub-'
 
 export function useAccounts() {
   const accounts = useState<CollctAccount[]>('collct-accounts', () => [])
@@ -48,9 +49,17 @@ export function useAccounts() {
   }
 
   function removeAccount(id: string) {
+    const account = accounts.value.find(a => a.id === id)
     accounts.value = accounts.value.filter(a => a.id !== id)
     if (activeAccountId.value === id) {
       activeAccountId.value = accounts.value[0]?.id ?? null
+    }
+    if (account && import.meta.client) {
+      try {
+        localStorage.removeItem(`${PUSH_SUB_KEY_PREFIX}${account.id}-${account.serverUrl}`)
+      } catch {
+        // Ignore
+      }
     }
     save()
   }
