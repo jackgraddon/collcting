@@ -171,6 +171,10 @@ export function useApi() {
       return $api<{ ok: boolean }>('/api/notifications/read', { method: 'patch', body: data })
     },
 
+    async dismissNotification(id: number) {
+      return $api<{ ok: boolean }>(`/api/notifications/${id}`, { method: 'delete' })
+    },
+
     // Push Notifications
     async subscribePush(subscription: { endpoint: string, keys: { auth: string, p256dh: string } }) {
       return $api<{ success: boolean }>('/api/notifications/subscribe', { method: 'post', body: subscription })

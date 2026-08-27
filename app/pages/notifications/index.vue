@@ -63,6 +63,17 @@ async function markAllRead() {
   await api.markNotificationsRead({ all: true })
 }
 
+async function dismissNotification(n: Notification) {
+  notifications.value = notifications.value.filter(item => item.id !== n.id)
+  try {
+    await api.dismissNotification(n.id)
+  } catch {
+    // Re-add on failure
+    notifications.value.push(n)
+    notifications.value.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  }
+}
+
 function notificationText(n: Notification): string {
   switch (n.type) {
     case 'like':
@@ -204,7 +215,7 @@ function formatRelativeTime(date: string): string {
         v-for="n in notifications"
         :key="n.id"
         :to="notificationLink(n)"
-        class="flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-muted/50"
+        class="group flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-muted/50"
         :class="{ 'bg-primary/5': !n.isRead }"
         @click="markRead(n)"
       >
@@ -235,6 +246,16 @@ function formatRelativeTime(date: string): string {
           height="44"
           class="w-11 h-11 rounded-md object-cover shrink-0"
         >
+
+        <button
+          class="shrink-0 p-1 rounded-md hover:bg-muted/50 transition-colors lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100"
+          @click.prevent="dismissNotification(n)"
+        >
+          <UIcon
+            name="i-lucide-x"
+            class="w-4 h-4 text-muted"
+          />
+        </button>
       </NuxtLink>
     </div>
 

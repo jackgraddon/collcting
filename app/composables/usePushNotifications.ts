@@ -64,8 +64,15 @@ export function usePushNotifications() {
     if (key) {
       if (value) {
         localStorage.setItem(key, 'true')
+        if (activeAccount.value) {
+          localStorage.setItem('collct-push-account-active', JSON.stringify({
+            serverUrl: activeAccount.value.serverUrl,
+            token: activeAccount.value.token
+          }))
+        }
       } else {
         localStorage.removeItem(key)
+        localStorage.removeItem('collct-push-account-active')
       }
     }
   }

@@ -3,6 +3,7 @@
 
 const TAG_PREFIX = 'collct-'
 const shownNotifications = new Map()
+const ACCOUNT_STORAGE_PREFIX = 'collct-push-account-'
 
 self.addEventListener('push', (event) => {
   if (!event.data) {
@@ -59,6 +60,13 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Collct', options).catch((err) => {
       console.error('[push] Failed to show notification:', err)
+    }).then(() => {
+      if (data.serverUrl && data.token) {
+        localStorage.setItem(`${ACCOUNT_STORAGE_PREFIX}active`, JSON.stringify({
+          serverUrl: data.serverUrl,
+          token: data.token
+        }))
+      }
     })
   )
 })
@@ -99,6 +107,36 @@ self.addEventListener('notificationclick', (event) => {
       })
     })
   )
+})
+
+self.addEventListener('notificationclose', (event) => {
+  const data = event.notification.data || {}
+  const notificationId = data.notificationId
+
+  if (!notificationId) {
+    return
+  }
+
+  const stored = localStorage.getItem(`${ACCOUNT_STORAGE_PREFIX}active`)
+  if (!stored) {
+    return
+  }
+
+  try {
+    const { serverUrl, token } = JSON.parse(stored)
+    if (!serverUrl || !token) return
+
+    event.waitUntil(
+      fetch(`${serverUrl}/api/notifications/${notificationId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch((err) => {
+        console.error('[push] Failed to dismiss notification:', err)
+      })
+    )
+  } catch (err) {
+    console.error('[push] Failed to parse stored credentials:', err)
+  }
 })
 
 self.addEventListener('pushsubscriptionchange', (event) => {
