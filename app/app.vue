@@ -1,7 +1,11 @@
 <script setup>
 const route = useRoute()
 const router = useRouter()
-const { open: momentOpen, openMomentModal, closeModal: closeMomentModal } = useMomentCaptureModal()
+const { emit: emitUpload } = useUploadBus()
+const { open: momentOpen, openMomentModal, onCaptured } = useMomentCaptureModal()
+const uploadModal = useUploadModal()
+const { canCapture, isActive, capturedToday } = useMoments()
+const toast = useToast()
 
 useHead({
   htmlAttrs: {
@@ -18,10 +22,34 @@ useSeoMeta({
 
 watch(() => route.query.moment, (val) => {
   if (val === 'capture') {
-    openMomentModal()
     router.replace({ query: {} })
+    if (canCapture.value) {
+      openMomentModal()
+    } else {
+      const reason = capturedToday.value
+        ? 'You already captured your moment today.'
+        : !isActive.value
+            ? 'The moment window has passed.'
+            : 'Moment capture isn\'t available right now.'
+      toast.add({
+        title: 'Missed the moment',
+        description: `${reason} You can still post anytime.`,
+        color: 'neutral',
+        icon: 'i-lucide-clock'
+      })
+    }
   }
 }, { immediate: true })
+
+function onMomentCaptured(file, at) {
+  onCaptured(file, at)
+  uploadModal.openMomentModal(file, at)
+}
+
+function onUploaded(post) {
+  emitUpload(post)
+  uploadModal.closeModal()
+}
 </script>
 
 <template>
@@ -36,7 +64,15 @@ watch(() => route.query.moment, (val) => {
 
     <CollctMomentCaptureModal
       v-model:open="momentOpen"
-      @uploaded="closeMomentModal"
+      @captured="onMomentCaptured"
+    />
+
+    <CollctUploadModal
+      v-model:open="uploadModal.open.value"
+      :moment-mode="uploadModal.momentMode.value"
+      :prefill-photo="uploadModal.prefillPhoto.value"
+      :moment-captured-at="uploadModal.momentCapturedAt.value"
+      @uploaded="onUploaded"
     />
   </UApp>
 </template>
