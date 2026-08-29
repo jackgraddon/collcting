@@ -1,5 +1,3 @@
-import { App } from '@capacitor/app'
-
 type NotificationStatus = 'unsupported' | 'disabled' | 'pending' | 'active' | 'stale' | 'error'
 
 const SUBSCRIPTION_STORAGE_PREFIX = 'collct-push-sub-'
@@ -413,8 +411,10 @@ export function usePushNotifications() {
         })
       })
 
-      App.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) onForeground()
+      import('@capacitor/app').then(({ App }) => {
+        App.addListener('appStateChange', ({ isActive }) => {
+          if (isActive) onForeground()
+        })
       })
     } else {
       document.addEventListener('visibilitychange', onForeground)

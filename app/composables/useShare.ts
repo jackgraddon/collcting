@@ -1,6 +1,3 @@
-import { Share } from '@capacitor/share'
-import { Clipboard } from '@capacitor/clipboard'
-
 export function useShare() {
   const { isNative } = usePlatform()
   const toast = useToast()
@@ -8,9 +5,9 @@ export function useShare() {
   async function share(data: { title: string, text: string, url: string }) {
     if (isNative.value) {
       try {
+        const { Share } = await import('@capacitor/share')
         await Share.share(data)
       } catch {
-        // User cancelled or share failed — fall back to clipboard
         await copyToClipboard(data.url)
       }
     } else {
@@ -24,6 +21,7 @@ export function useShare() {
 
   async function copyToClipboard(text: string) {
     if (isNative.value) {
+      const { Clipboard } = await import('@capacitor/clipboard')
       await Clipboard.write({ string: text })
     } else {
       await navigator.clipboard.writeText(text)

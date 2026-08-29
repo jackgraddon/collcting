@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { Browser } from '@capacitor/browser'
-import { App, type PluginListenerHandle } from '@capacitor/app'
-
 definePageMeta({
   layout: false
 })
@@ -18,7 +15,7 @@ const polling = ref(false)
 const error = ref<string | null>(null)
 const showTokenForm = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
-let appUrlOpenListener: PluginListenerHandle | null = null
+let appUrlOpenListener: { remove: () => Promise<void> } | null = null
 
 async function handleBrowserAuth() {
   error.value = null
@@ -41,6 +38,7 @@ async function handleBrowserAuth() {
       sessionStorage.setItem('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
 
       // Listen for the deep link callback
+      const { App } = await import('@capacitor/app')
       appUrlOpenListener = await App.addListener('appUrlOpen', (event) => {
         const url = new URL(event.url)
         const redirectCode = url.searchParams.get('code')
@@ -51,6 +49,7 @@ async function handleBrowserAuth() {
         }
       })
 
+      const { Browser } = await import('@capacitor/browser')
       await Browser.open({ url: authorize_url })
     } else {
       sessionStorage.setItem('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
@@ -67,6 +66,7 @@ async function handleDeepLinkCallback(code: string, serverUrl: string) {
     await appUrlOpenListener.remove()
     appUrlOpenListener = null
   }
+  const { Browser } = await import('@capacitor/browser')
   await Browser.close()
 
   window.history.replaceState({}, '', '/login')
