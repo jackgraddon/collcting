@@ -2,8 +2,10 @@
 const route = useRoute()
 const toast = useToast()
 const api = useApi()
+const { ensureServerContext } = useServerContext()
 
 const code = route.params.code as string
+await ensureServerContext(route.query.server_url as string | null)
 
 const joining = ref(false)
 const joined = ref(false)

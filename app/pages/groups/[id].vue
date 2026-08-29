@@ -169,9 +169,23 @@ async function revokeInvite(inviteId: string) {
 }
 
 function copyInviteLink(code: string) {
-  const url = `${window.location.origin}/join/${code}`
-  navigator.clipboard.writeText(url)
-  toast.add({ title: 'Invite link copied', color: 'neutral', icon: 'i-lucide-link' })
+  const serverUrl = activeAccount.value?.serverUrl || window.location.origin
+  const shareUrl = new URL(window.location.origin)
+  shareUrl.pathname = `/join/${code}`
+  shareUrl.searchParams.set('server_url', serverUrl)
+
+  const url = shareUrl.toString()
+
+  try {
+    navigator.share({
+      title: 'Join my Collct group',
+      text: 'Join my group on Collct!',
+      url
+    })
+  } catch {
+    navigator.clipboard.writeText(url)
+    toast.add({ title: 'Invite link copied', color: 'neutral', icon: 'i-lucide-link' })
+  }
 }
 
 watchEffect(() => {
