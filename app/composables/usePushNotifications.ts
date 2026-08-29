@@ -1,4 +1,3 @@
-import { PushNotifications } from '@capacitor/push-notifications'
 import { App } from '@capacitor/app'
 
 type NotificationStatus = 'unsupported' | 'disabled' | 'pending' | 'active' | 'stale' | 'error'
@@ -117,6 +116,7 @@ export function usePushNotifications() {
     if (!activeAccount.value) return false
 
     try {
+      const { PushNotifications } = await import('@capacitor/push-notifications')
       const result = await PushNotifications.requestPermissions()
       if (result.display !== 'granted') {
         permission.value = 'denied'
@@ -152,6 +152,7 @@ export function usePushNotifications() {
 
   async function unsubscribeNative(): Promise<void> {
     try {
+      const { PushNotifications } = await import('@capacitor/push-notifications')
       await PushNotifications.removeAllListeners()
       await PushNotifications.unregister()
     } catch {
@@ -163,6 +164,7 @@ export function usePushNotifications() {
 
   async function checkLocalSubscriptionNative() {
     try {
+      const { PushNotifications } = await import('@capacitor/push-notifications')
       const permissions = await PushNotifications.checkPermissions()
       permission.value = permissions.display === 'granted' ? 'granted' : 'denied'
 
@@ -402,11 +404,13 @@ export function usePushNotifications() {
   if (import.meta.client) {
     if (isNative.value) {
       // Listen for foreground notification taps on native
-      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-        const data = notification.notification.data
-        if (data?.navigate) {
-          navigateTo(data.navigate)
-        }
+      import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+          const data = notification.notification.data
+          if (data?.navigate) {
+            navigateTo(data.navigate)
+          }
+        })
       })
 
       App.addListener('appStateChange', ({ isActive }) => {

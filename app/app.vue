@@ -1,6 +1,4 @@
 <script setup>
-import { PushNotifications } from '@capacitor/push-notifications'
-
 const route = useRoute()
 const router = useRouter()
 const { emit: emitUpload } = useUploadBus()
@@ -58,15 +56,17 @@ function onUploaded(post) {
 onMounted(() => {
   if (!isNative.value) return
 
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    const title = notification.notification?.title || 'Collct'
-    const body = notification.notification?.body || ''
+  import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      const title = notification.notification?.title || 'Collct'
+      const body = notification.notification?.body || ''
 
-    toast.add({
-      title,
-      description: body,
-      color: 'primary',
-      icon: 'i-lucide-bell'
+      toast.add({
+        title,
+        description: body,
+        color: 'primary',
+        icon: 'i-lucide-bell'
+      })
     })
   })
 })
