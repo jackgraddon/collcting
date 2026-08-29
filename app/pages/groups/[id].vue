@@ -5,6 +5,7 @@ const toast = useToast()
 const api = useApi()
 const { activeAccount } = useAccounts()
 const { activeSupported } = useMoments()
+const { share: shareLink } = useShare()
 
 const groupId = Number(route.params.id)
 
@@ -174,18 +175,11 @@ function copyInviteLink(code: string) {
   shareUrl.pathname = `/join/${code}`
   shareUrl.searchParams.set('server_url', serverUrl)
 
-  const url = shareUrl.toString()
-
-  try {
-    navigator.share({
-      title: 'Join my Collct group',
-      text: 'Join my group on Collct!',
-      url
-    })
-  } catch {
-    navigator.clipboard.writeText(url)
-    toast.add({ title: 'Invite link copied', color: 'neutral', icon: 'i-lucide-link' })
-  }
+  shareLink({
+    title: 'Join my Collct group',
+    text: 'Join my group on Collct!',
+    url: shareUrl.toString()
+  })
 }
 
 watchEffect(() => {

@@ -1,3 +1,6 @@
+import { PushNotifications } from '@capacitor/push-notifications'
+import { App } from '@capacitor/app'
+
 type NotificationStatus = 'unsupported' | 'disabled' | 'pending' | 'active' | 'stale' | 'error'
 
 const SUBSCRIPTION_STORAGE_PREFIX = 'collct-push-sub-'
@@ -9,8 +12,10 @@ const VALIDATE_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
 export function usePushNotifications() {
   const api = useApi()
   const { activeAccount } = useAccounts()
+  const { isNative } = usePlatform()
 
   const isSupported = computed(() => {
+    if (isNative.value) return true
     return import.meta.client
       && 'serviceWorker' in navigator
       && 'PushManager' in window
@@ -18,7 +23,7 @@ export function usePushNotifications() {
   })
 
   const isPwa = computed(() => {
-    if (!import.meta.client) return false
+    if (!import.meta.client || isNative.value) return false
     return navigator.standalone === true
       || window.matchMedia('(display-mode: standalone)').matches
   })
@@ -106,8 +111,76 @@ export function usePushNotifications() {
     }
   }
 
+  // --- Native (Capacitor) push ---
+
+  async function subscribeNative(): Promise<boolean> {
+    if (!activeAccount.value) return false
+
+    try {
+      const result = await PushNotifications.requestPermissions()
+      if (result.display !== 'granted') {
+        permission.value = 'denied'
+        return false
+      }
+
+      permission.value = 'granted'
+      await PushNotifications.register()
+
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve(false)
+        }, 10000)
+
+        PushNotifications.addListener('registration', (token) => {
+          clearTimeout(timeout)
+          hasLocalSubscription.value = true
+          setSubscribedForAccount(true)
+          api.subscribePush({ deviceToken: token.value }).catch(() => {})
+          resolve(true)
+        })
+
+        PushNotifications.addListener('registrationError', () => {
+          clearTimeout(timeout)
+          hasLocalSubscription.value = false
+          resolve(false)
+        })
+      })
+    } catch {
+      return false
+    }
+  }
+
+  async function unsubscribeNative(): Promise<void> {
+    try {
+      await PushNotifications.removeAllListeners()
+      await PushNotifications.unregister()
+    } catch {
+      // Ignore
+    }
+    hasLocalSubscription.value = false
+    setSubscribedForAccount(false)
+  }
+
+  async function checkLocalSubscriptionNative() {
+    try {
+      const permissions = await PushNotifications.checkPermissions()
+      permission.value = permissions.display === 'granted' ? 'granted' : 'denied'
+
+      if (permission.value === 'granted') {
+        // Re-register to ensure token is current
+        await PushNotifications.register()
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  // --- Web push (existing logic) ---
+
   async function subscribe(): Promise<boolean> {
     if (!isSupported.value || !vapidKey.value) return false
+
+    if (isNative.value) return subscribeNative()
 
     permission.value = Notification.permission
     if (permission.value !== 'granted') return false
@@ -149,6 +222,8 @@ export function usePushNotifications() {
   async function unsubscribe(): Promise<void> {
     if (!isSupported.value) return
 
+    if (isNative.value) return unsubscribeNative()
+
     try {
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.getSubscription()
@@ -172,6 +247,11 @@ export function usePushNotifications() {
   async function validateSubscription(): Promise<boolean> {
     if (!isSupported.value || !activeAccount.value) return false
 
+    if (isNative.value) {
+      await checkLocalSubscriptionNative()
+      return hasLocalSubscription.value
+    }
+
     try {
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.getSubscription()
@@ -194,6 +274,8 @@ export function usePushNotifications() {
 
   async function recoverStaleSubscription(): Promise<boolean> {
     if (!isSupported.value || !vapidKey.value) return false
+
+    if (isNative.value) return subscribeNative()
 
     validating.value = true
     try {
@@ -228,6 +310,8 @@ export function usePushNotifications() {
   async function requestPermission(): Promise<boolean> {
     if (!isSupported.value) return false
 
+    if (isNative.value) return subscribeNative()
+
     const result = await Notification.requestPermission()
     permission.value = result
 
@@ -259,6 +343,9 @@ export function usePushNotifications() {
 
   async function checkLocalSubscription() {
     if (!isSupported.value) return
+
+    if (isNative.value) return checkLocalSubscriptionNative()
+
     try {
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.getSubscription()
@@ -274,6 +361,14 @@ export function usePushNotifications() {
 
   async function init() {
     if (!import.meta.client || !activeAccount.value) return
+
+    if (isNative.value) {
+      await checkLocalSubscriptionNative()
+      // Native push doesn't need VAPID — set to placeholder so shouldPrompt works
+      vapidKey.value = 'native'
+      return
+    }
+
     vapidKey.value = await fetchVapidKey()
     if ('Notification' in window) {
       permission.value = Notification.permission
@@ -305,16 +400,30 @@ export function usePushNotifications() {
   init()
 
   if (import.meta.client) {
-    document.addEventListener('visibilitychange', onForeground)
-    validateTimer = setInterval(() => {
-      if (!document.hidden && activeAccount.value && isSupported.value) {
-        onForeground()
-      }
-    }, VALIDATE_INTERVAL_MS)
+    if (isNative.value) {
+      // Listen for foreground notification taps on native
+      PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+        const data = notification.notification.data
+        if (data?.navigate) {
+          navigateTo(data.navigate)
+        }
+      })
+
+      App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) onForeground()
+      })
+    } else {
+      document.addEventListener('visibilitychange', onForeground)
+      validateTimer = setInterval(() => {
+        if (!document.hidden && activeAccount.value && isSupported.value) {
+          onForeground()
+        }
+      }, VALIDATE_INTERVAL_MS)
+    }
   }
 
   onUnmounted(() => {
-    if (import.meta.client) {
+    if (import.meta.client && !isNative.value) {
       document.removeEventListener('visibilitychange', onForeground)
       if (validateTimer) {
         clearInterval(validateTimer)

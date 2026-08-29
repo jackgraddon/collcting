@@ -41,7 +41,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      isBeta: true
+      isBeta: process.env.IS_BETA === 'true'
     }
   },
   compatibilityDate: '2026-06-30',

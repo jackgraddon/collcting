@@ -6,6 +6,7 @@ await ensureServerContext(route.query.server_url as string | null)
 const api = useApi()
 const router = useRouter()
 const toast = useToast()
+const { share: shareLink } = useShare()
 
 const preloaded = ref<PostData | null>(import.meta.client
   ? (() => {
@@ -115,22 +116,11 @@ function share() {
   shareUrl.pathname = `/post/${postId}`
   shareUrl.searchParams.set('server_url', serverUrl)
 
-  const shareData = {
+  shareLink({
     title: 'Collcting',
     text: 'Check out this post from my Collct server!',
     url: shareUrl.toString()
-  }
-
-  try {
-    navigator.share(shareData)
-  } catch {
-    navigator.clipboard.writeText(shareUrl.toString())
-    toast.add({
-      title: 'Link copied',
-      color: 'neutral',
-      icon: 'solar:link-linear'
-    })
-  }
+  })
 }
 
 const liked = ref(false)

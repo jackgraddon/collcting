@@ -1,4 +1,6 @@
 <script setup>
+import { PushNotifications } from '@capacitor/push-notifications'
+
 const route = useRoute()
 const router = useRouter()
 const { emit: emitUpload } = useUploadBus()
@@ -7,6 +9,7 @@ const uploadModal = useUploadModal()
 const { canCapture, isActive, capturedToday } = useMoments()
 const toast = useToast()
 const { public: { isBeta } } = useRuntimeConfig()
+const { isNative } = usePlatform()
 
 useHead({
   htmlAttrs: {
@@ -51,6 +54,22 @@ function onUploaded(post) {
   emitUpload(post)
   uploadModal.closeModal()
 }
+
+onMounted(() => {
+  if (!isNative.value) return
+
+  PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    const title = notification.notification?.title || 'Collct'
+    const body = notification.notification?.body || ''
+
+    toast.add({
+      title,
+      description: body,
+      color: 'primary',
+      icon: 'i-lucide-bell'
+    })
+  })
+})
 </script>
 
 <template>

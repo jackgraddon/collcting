@@ -10,9 +10,20 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "cap:build": "nuxt generate && npx cap sync",
+    "cap:ios": "nuxt generate && npx cap sync ios && npx cap open ios",
+    "cap:android": "nuxt generate && npx cap sync android && npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/clipboard": "^8.0.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/push-notifications": "^8.1.2",
+    "@capacitor/share": "^8.0.1",
     "@iconify-json/lucide": "^1.2.117",
     "@iconify-json/simple-icons": "^1.2.90",
     "@iconify-json/solar": "^1.2.5",
@@ -27,6 +38,7 @@
     "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@nuxt/eslint": "^1.16.0",
     "eslint": "^10.7.0",
     "typescript": "^6.0.3",

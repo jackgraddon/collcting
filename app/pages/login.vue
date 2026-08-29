@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { Browser } from '@capacitor/browser'
+import { App, type PluginListenerHandle } from '@capacitor/app'
+
 definePageMeta({
   layout: false
 })
 
 const router = useRouter()
 const { addAccount, testConnection, accounts, requestAuthorization, exchangeToken } = useAccounts()
+const { isNative } = usePlatform()
 
 const serverUrl = ref('')
 const accountName = ref('')
@@ -14,6 +18,7 @@ const polling = ref(false)
 const error = ref<string | null>(null)
 const showTokenForm = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let appUrlOpenListener: PluginListenerHandle | null = null
 
 async function handleBrowserAuth() {
   error.value = null
@@ -26,15 +31,48 @@ async function handleBrowserAuth() {
     }
     url = url.replace(/\/$/, '')
 
-    const { authorize_url, code } = await requestAuthorization(url)
+    const redirectUri = isNative.value
+      ? 'collct://callback'
+      : window.location.origin + '/login'
 
-    sessionStorage.setItem('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
+    const { authorize_url, code } = await requestAuthorization(url, 'Collct', redirectUri)
 
-    window.location.href = authorize_url
+    if (isNative.value) {
+      sessionStorage.setItem('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
+
+      // Listen for the deep link callback
+      appUrlOpenListener = await App.addListener('appUrlOpen', (event) => {
+        const url = new URL(event.url)
+        const redirectCode = url.searchParams.get('code')
+        const redirectServer = url.searchParams.get('server_url')
+
+        if (redirectCode && redirectServer) {
+          handleDeepLinkCallback(redirectCode, redirectServer)
+        }
+      })
+
+      await Browser.open({ url: authorize_url })
+    } else {
+      sessionStorage.setItem('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
+      window.location.href = authorize_url
+    }
   } catch (e: unknown) {
     loading.value = false
     error.value = e instanceof Error ? e.message : 'Could not start authorization. Check your server URL.'
   }
+}
+
+async function handleDeepLinkCallback(code: string, serverUrl: string) {
+  if (appUrlOpenListener) {
+    await appUrlOpenListener.remove()
+    appUrlOpenListener = null
+  }
+  await Browser.close()
+
+  window.history.replaceState({}, '', '/login')
+  serverUrl.value = serverUrl
+  polling.value = true
+  pollForToken(serverUrl, code)
 }
 
 async function pollForToken(url: string, code: string) {
@@ -121,6 +159,7 @@ async function handleTokenAuth() {
 const hasExistingAccounts = computed(() => accounts.value.length > 0)
 
 onMounted(() => {
+  // Handle web redirect callback
   const params = new URLSearchParams(window.location.search)
   const redirectCode = params.get('code')
   const redirectServer = params.get('server_url')
@@ -133,6 +172,7 @@ onMounted(() => {
     return
   }
 
+  // Handle pending auth from session storage
   const pending = sessionStorage.getItem('collct_pending_auth')
   if (pending) {
     sessionStorage.removeItem('collct_pending_auth')
@@ -151,6 +191,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (appUrlOpenListener) {
+    appUrlOpenListener.remove()
+    appUrlOpenListener = null
+  }
 })
 </script>
 

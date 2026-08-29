@@ -4,6 +4,7 @@ const toast = useToast()
 const api = useApi()
 const { activeAccount, removeAccount, accounts } = useAccounts()
 const { isPwa, permission, notificationStatus, requestPermission, unsubscribe, retry } = usePushNotifications()
+const { platform } = usePlatform()
 
 const accountState = reactive({
   name: activeAccount.value?.user?.name ?? '',
@@ -103,8 +104,13 @@ const statusConfig = computed(() => {
 
 const showIosNote = computed(() => {
   if (!import.meta.client) return false
+  if (platform.value === 'apns') return notificationStatus.value === 'active'
   const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   return isIos && isPwa.value && notificationStatus.value === 'active'
+})
+
+const showAndroidNote = computed(() => {
+  return platform.value === 'fcm' && notificationStatus.value === 'active'
 })
 
 async function enableNotifications() {
@@ -313,6 +319,12 @@ const tabs = computed(() => [
                 class="text-xs text-muted mt-1 italic"
               >
                 Note: Notifications may be delayed while the app is backgrounded (iOS limitation).
+              </p>
+              <p
+                v-if="showAndroidNote"
+                class="text-xs text-muted mt-1 italic"
+              >
+                Note: Notifications should arrive promptly on Android.
               </p>
             </div>
             <UButton

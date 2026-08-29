@@ -96,7 +96,7 @@ export function useAccounts() {
     }
   }
 
-  async function requestAuthorization(serverUrl: string, appName = 'Collct') {
+  async function requestAuthorization(serverUrl: string, appName = 'Collct', redirectUri?: string) {
     return $fetch<{
       authorize_url: string
       code: string
@@ -105,7 +105,7 @@ export function useAccounts() {
       baseURL: serverUrl,
       method: 'post',
       body: {
-        redirect_uri: window.location.origin + '/login',
+        redirect_uri: redirectUri || window.location.origin + '/login',
         app_name: appName
       }
     })
