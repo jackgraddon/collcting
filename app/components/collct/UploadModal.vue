@@ -115,7 +115,8 @@ async function upload() {
   uploading.value = true
   try {
     compressing.value = true
-    const photo = await compressImage(file.value)
+    const filename = props.momentMode ? `moment-${Date.now()}.webp` : 'photo.webp'
+    const photo = await compressImage(file.value, { filename })
     compressing.value = false
 
     const form = new FormData()

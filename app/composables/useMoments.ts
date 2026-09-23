@@ -143,7 +143,7 @@ export function useMoments() {
       await updateDraft(draft.id, { status: 'retrying', attempts: draft.attempts + 1 })
 
       try {
-        const compressed = await compressImage(draft.photo)
+        const compressed = await compressImage(draft.photo, { filename: `moment-${draft.createdAt}.webp` })
         const form = new FormData()
         form.append('photo', compressed)
         form.append('groupIds', JSON.stringify(draft.selectedGroupIds))

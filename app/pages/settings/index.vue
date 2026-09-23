@@ -154,7 +154,8 @@ async function onAvatarChange(e: Event) {
 
   uploadingAvatar.value = true
   try {
-    const { avatarUrl } = await api.uploadAvatar(file)
+    const avatar = await compressAvatar(file)
+    const { avatarUrl } = await api.uploadAvatar(avatar)
     if (activeAccount.value?.user) {
       activeAccount.value.user.avatarUrl = avatarUrl
     }
