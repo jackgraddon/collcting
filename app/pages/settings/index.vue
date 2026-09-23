@@ -2,7 +2,7 @@
 const router = useRouter()
 const toast = useToast()
 const api = useApi()
-const { activeAccount, removeAccount, accounts } = useAccounts()
+const { activeAccount, removeAccount, accounts, updateAccount } = useAccounts()
 const { isPwa, permission, notificationStatus, requestPermission, unsubscribe, retry } = usePushNotifications()
 const { platform } = usePlatform()
 const { mediaUrl } = useMediaUrl()
@@ -24,6 +24,19 @@ try {
   serverVersion.value = v.version
 } catch {
   // ignore
+}
+
+// Self-heal stale cached profile (e.g. avatar uploaded elsewhere or lost
+// before we persisted it) — the server is source of truth.
+try {
+  const me = await api.getMe()
+  if (activeAccount.value) {
+    updateAccount(activeAccount.value.id, {
+      user: { id: me.id, name: me.name, username: me.username, avatarUrl: me.avatarUrl }
+    })
+  }
+} catch {
+  // Offline — keep cached profile
 }
 
 const statusConfig = computed(() => {
@@ -157,7 +170,9 @@ async function onAvatarChange(e: Event) {
     const avatar = await compressAvatar(file)
     const { avatarUrl } = await api.uploadAvatar(avatar)
     if (activeAccount.value?.user) {
-      activeAccount.value.user.avatarUrl = avatarUrl
+      updateAccount(activeAccount.value.id, {
+        user: { ...activeAccount.value.user, avatarUrl }
+      })
     }
     toast.add({ title: 'Avatar updated', color: 'success' })
   } catch (e: unknown) {
@@ -182,7 +197,9 @@ async function onSaveAccount() {
     }
     await api.updateUser(body)
     if (activeAccount.value?.user && body.name) {
-      activeAccount.value.user.name = body.name
+      updateAccount(activeAccount.value.id, {
+        user: { ...activeAccount.value.user, name: body.name }
+      })
     }
     toast.add({ title: 'Saved', description: 'Your account has been updated.', color: 'success' })
   } catch (e: unknown) {
