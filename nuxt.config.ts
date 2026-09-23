@@ -68,7 +68,11 @@ export default defineNuxtConfig({
   },
 
   image: {
-    provider: import.meta.dev ? 'ipx' : 'vercel',
+    // No optimizer: the API serves original bytes with immutable caching and
+    // explicitly asks clients to render blob URLs directly. This also keeps
+    // images working on self-hosted clients and Capacitor builds, where
+    // `/_vercel/image` does not exist.
+    provider: 'none',
     screens: {
       'xs': 320,
       'sm': 640,
@@ -147,30 +151,25 @@ export default defineNuxtConfig({
       importScripts: ['/push-handler.js'],
       runtimeCaching: [
         {
-          urlPattern: /^https:\/\/.*\/_vercel\/image\?url=.*/i,
+          // Server blob URLs are immutable (max-age=1y) — cache permanently.
+          urlPattern: /^https?:\/\/.*\/api\/blob\/.*/i,
           handler: 'CacheFirst',
           options: {
-            cacheName: 'collct-images',
+            cacheName: 'collct-media',
             expiration: {
-              maxEntries: 200,
-              maxAgeSeconds: 30 * 24 * 60 * 60
-            }
-          }
-        },
-        {
-          urlPattern: /^https:\/\/.*\.blob\.vercel-storage\.com\/.*/i,
-          handler: 'CacheFirst',
-          options: {
-            cacheName: 'collct-photos-raw',
-            expiration: {
-              maxEntries: 200,
-              maxAgeSeconds: 30 * 24 * 60 * 60
+              maxEntries: 300,
+              maxAgeSeconds: 365 * 24 * 60 * 60
             },
             cacheableResponse: { statuses: [0, 200] }
           }
         },
         {
-          urlPattern: /^https:\/\/.*\/api\//,
+          // Must precede the generic /api/ rule: Workbox matches first-win.
+          urlPattern: /^https?:\/\/.*\/api\/notifications/,
+          handler: 'NetworkOnly'
+        },
+        {
+          urlPattern: /^https?:\/\/.*\/api\//,
           handler: 'NetworkFirst',
           options: {
             cacheName: 'collct-api',
@@ -180,10 +179,6 @@ export default defineNuxtConfig({
               maxAgeSeconds: 24 * 60 * 60
             }
           }
-        },
-        {
-          urlPattern: /^https:\/\/.*\/api\/notifications/,
-          handler: 'NetworkOnly'
         }
       ]
     }

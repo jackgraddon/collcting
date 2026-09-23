@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 const route = useRoute()
 const api = useApi()
+const { mediaUrl } = useMediaUrl()
 
 const username = computed(() => route.params.username as string)
 
@@ -99,7 +100,7 @@ function lighten(hex: string | null | undefined, amount = 0.85): string {
     <template v-else>
       <div class="flex items-start gap-4">
         <UAvatar
-          :src="profile.user.avatarUrl || undefined"
+          :src="mediaUrl(profile.user.avatarUrl) || undefined"
           :alt="profile.user.name"
           :text="profile.user.name.slice(0, 2).toUpperCase()"
           size="xl"

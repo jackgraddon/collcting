@@ -2,6 +2,7 @@
 const router = useRouter()
 const api = useApi()
 const { shouldPrompt, isPwa, requestPermission, dismissPrompt } = usePushNotifications()
+const { mediaUrl } = useMediaUrl()
 
 const showPrompt = computed(() => shouldPrompt.value)
 
@@ -227,7 +228,7 @@ function formatRelativeTime(date: string): string {
         />
 
         <UAvatar
-          :src="n.actor.avatarUrl || undefined"
+          :src="mediaUrl(n.actor.avatarUrl) || undefined"
           :alt="n.actor.name"
           :text="n.actor.name?.slice(0, 2).toUpperCase() || '?'"
           size="sm"
@@ -243,7 +244,7 @@ function formatRelativeTime(date: string): string {
 
         <img
           v-if="n.photoUrl"
-          :src="n.photoUrl"
+          :src="mediaUrl(n.photoUrl)"
           width="44"
           height="44"
           class="w-11 h-11 rounded-md object-cover shrink-0"

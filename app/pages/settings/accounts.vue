@@ -2,6 +2,7 @@
 // Auth handled by global middleware
 const router = useRouter()
 const { accounts, activeAccountId, removeAccount, switchAccount } = useAccounts()
+const { mediaUrl } = useMediaUrl()
 
 function handleRemoveAccount(id: string) {
   removeAccount(id)
@@ -21,7 +22,7 @@ function handleRemoveAccount(id: string) {
       >
         <div class="flex items-center gap-4">
           <UAvatar
-            :src="account.user?.avatarUrl ?? undefined"
+            :src="mediaUrl(account.user?.avatarUrl, account.serverUrl) ?? undefined"
             :alt="account.user?.name ?? account.name"
             size="lg"
           />

@@ -9,7 +9,7 @@ const VALIDATE_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
 export function usePushNotifications() {
   const api = useApi()
   const { activeAccount } = useAccounts()
-  const { isNative } = usePlatform()
+  const { isNative, platform } = usePlatform()
 
   const isSupported = computed(() => {
     if (isNative.value) return true
@@ -21,7 +21,7 @@ export function usePushNotifications() {
 
   const isPwa = computed(() => {
     if (!import.meta.client || isNative.value) return false
-    return navigator.standalone === true
+    return (navigator as Navigator & { standalone?: boolean }).standalone === true
       || window.matchMedia('(display-mode: standalone)').matches
   })
 
@@ -116,7 +116,7 @@ export function usePushNotifications() {
     try {
       const { PushNotifications } = await import('@capacitor/push-notifications')
       const result = await PushNotifications.requestPermissions()
-      if (result.display !== 'granted') {
+      if (result.receive !== 'granted') {
         permission.value = 'denied'
         return false
       }
@@ -133,7 +133,7 @@ export function usePushNotifications() {
           clearTimeout(timeout)
           hasLocalSubscription.value = true
           setSubscribedForAccount(true)
-          api.subscribePush({ deviceToken: token.value }).catch(() => {})
+          api.subscribePush({ platform: platform.value, endpoint: token.value }).catch(() => {})
           resolve(true)
         })
 
@@ -164,7 +164,7 @@ export function usePushNotifications() {
     try {
       const { PushNotifications } = await import('@capacitor/push-notifications')
       const permissions = await PushNotifications.checkPermissions()
-      permission.value = permissions.display === 'granted' ? 'granted' : 'denied'
+      permission.value = permissions.receive === 'granted' ? 'granted' : 'denied'
 
       if (permission.value === 'granted') {
         // Re-register to ensure token is current
@@ -176,6 +176,10 @@ export function usePushNotifications() {
   }
 
   // --- Web push (existing logic) ---
+
+  function webSubscriptionPayload(subscription: PushSubscription) {
+    return { platform: 'web' as const, ...(subscription.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } }) }
+  }
 
   async function subscribe(): Promise<boolean> {
     if (!isSupported.value || !vapidKey.value) return false
@@ -191,7 +195,7 @@ export function usePushNotifications() {
 
       if (existing) {
         try {
-          await api.subscribePush(existing.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
+          await api.subscribePush(webSubscriptionPayload(existing))
           hasLocalSubscription.value = true
           setSubscribedForAccount(true)
           storeSwSubscriptionCredentials(existing.endpoint)
@@ -206,7 +210,7 @@ export function usePushNotifications() {
         applicationServerKey: urlBase64ToUint8Array(vapidKey.value)
       })
 
-      await api.subscribePush(subscription.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
+      await api.subscribePush(webSubscriptionPayload(subscription))
 
       hasLocalSubscription.value = true
       setSubscribedForAccount(true)
@@ -262,7 +266,7 @@ export function usePushNotifications() {
         return false
       }
 
-      await api.subscribePush(subscription.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
+      await api.subscribePush(webSubscriptionPayload(subscription))
       hasLocalSubscription.value = true
       setSubscribedForAccount(true)
       storeSwSubscriptionCredentials(subscription.endpoint)
@@ -291,7 +295,7 @@ export function usePushNotifications() {
         applicationServerKey: urlBase64ToUint8Array(vapidKey.value)
       })
 
-      await api.subscribePush(subscription.toJSON() as { endpoint: string, keys: { auth: string, p256dh: string } })
+      await api.subscribePush(webSubscriptionPayload(subscription))
 
       hasLocalSubscription.value = true
       setSubscribedForAccount(true)

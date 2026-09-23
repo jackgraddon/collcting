@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 const { accounts, activeAccount, switchAccount } = useAccounts()
+const { mediaUrl } = useMediaUrl()
 const router = useRouter()
 
 const open = ref<boolean>(false)
@@ -27,7 +28,7 @@ function goToManageAccounts() {
     :items="[
       ...accounts.map(a => ({
         label: a.name || (a.user?.username ?? a.serverUrl),
-        avatar: { src: a.user?.avatarUrl ?? undefined, alt: a.name || a.user?.username },
+        avatar: { src: mediaUrl(a.user?.avatarUrl, a.serverUrl) ?? undefined, alt: a.name || a.user?.username },
         suffix: a.serverUrl,
         active: a.id === activeAccount?.id,
         onSelect: () => handleSwitch(a.id)
@@ -44,7 +45,7 @@ function goToManageAccounts() {
       size="sm"
     >
       <UAvatar
-        :src="activeAccount?.user?.avatarUrl ?? undefined"
+        :src="mediaUrl(activeAccount?.user?.avatarUrl) ?? undefined"
         :alt="activeAccount?.name || activeAccount?.user?.username"
         size="xs"
       />

@@ -8,6 +8,7 @@ const props = defineProps<{
 
 const toast = useToast()
 const api = useApi()
+const { mediaUrl } = useMediaUrl()
 
 const REACTIONS: { type: ReactionType, emoji: string, label: string }[] = [
   { type: 'thumbs_up', emoji: '👍', label: 'Like' },
@@ -222,7 +223,7 @@ function totalReactions(counts: ReactionCounts) {
         class="flex gap-3"
       >
         <UAvatar
-          :src="comment.user.avatarUrl || undefined"
+          :src="mediaUrl(comment.user.avatarUrl) || undefined"
           :alt="comment.user.name"
           :text="comment.user.name.slice(0, 2).toUpperCase()"
           size="sm"
@@ -359,7 +360,7 @@ function totalReactions(counts: ReactionCounts) {
       class="flex gap-3 pt-2"
     >
       <UAvatar
-        :src="user?.avatarUrl || undefined"
+        :src="mediaUrl(user?.avatarUrl) || undefined"
         :alt="user?.name ?? ''"
         :text="(user?.name ?? '?').slice(0, 2).toUpperCase()"
         size="sm"

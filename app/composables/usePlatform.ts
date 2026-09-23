@@ -3,7 +3,7 @@ type PlatformType = 'web' | 'apns' | 'fcm'
 export function usePlatform() {
   const isNative = computed(() => {
     if (!import.meta.client) return false
-    return !!(window as Record<string, unknown>).Capacitor
+    return !!(window as unknown as Record<string, unknown>).Capacitor
   })
 
   const isWeb = computed(() => !isNative.value)
@@ -11,7 +11,7 @@ export function usePlatform() {
   const platform = computed<PlatformType>(() => {
     if (!import.meta.client || !isNative.value) return 'web'
 
-    const Capacitor = (window as Record<string, unknown>).Capacitor as Record<string, unknown> | undefined
+    const Capacitor = (window as unknown as Record<string, unknown>).Capacitor as Record<string, unknown> | undefined
     const getPlatform = Capacitor?.getPlatform as (() => string) | undefined
     if (getPlatform) {
       const p = getPlatform()

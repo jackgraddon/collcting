@@ -61,7 +61,7 @@ async function handleBrowserAuth() {
   }
 }
 
-async function handleDeepLinkCallback(code: string, serverUrl: string) {
+async function handleDeepLinkCallback(code: string, server: string) {
   if (appUrlOpenListener) {
     await appUrlOpenListener.remove()
     appUrlOpenListener = null
@@ -70,9 +70,9 @@ async function handleDeepLinkCallback(code: string, serverUrl: string) {
   await Browser.close()
 
   window.history.replaceState({}, '', '/login')
-  serverUrl.value = serverUrl
+  serverUrl.value = server
   polling.value = true
-  pollForToken(serverUrl, code)
+  pollForToken(server, code)
 }
 
 async function pollForToken(url: string, code: string) {

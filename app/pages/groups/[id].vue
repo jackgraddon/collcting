@@ -6,6 +6,7 @@ const api = useApi()
 const { activeAccount } = useAccounts()
 const { activeSupported } = useMoments()
 const { share: shareLink } = useShare()
+const { mediaUrl } = useMediaUrl()
 
 const groupId = Number(route.params.id)
 
@@ -349,7 +350,7 @@ watchEffect(() => {
               class="flex items-center gap-3 min-w-0 flex-1"
             >
               <UAvatar
-                :src="member.avatarUrl || undefined"
+                :src="mediaUrl(member.avatarUrl) || undefined"
                 :alt="member.name"
                 :text="member.name.slice(0, 2).toUpperCase()"
                 size="sm"

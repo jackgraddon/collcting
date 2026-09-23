@@ -7,6 +7,7 @@ const api = useApi()
 const router = useRouter()
 const toast = useToast()
 const { share: shareLink } = useShare()
+const { mediaUrl } = useMediaUrl()
 
 const preloaded = ref<PostData | null>(import.meta.client
   ? (() => {
@@ -238,16 +239,14 @@ onMounted(async () => {
       class="space-y-6 lg:space-y-0 lg:flex lg:gap-8 lg:min-h-[calc(100dvh-8rem-var(--safe-area-top,env(safe-area-inset-top)))]"
     >
       <div class="lg:flex-1 lg:min-w-0 order-2 lg:order-1 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100dvh-8rem-var(--safe-area-top,env(safe-area-inset-top)))]">
-        <NuxtImg
+        <img
           v-if="post"
-          :src="freshPost ? post.url : (thumbnailUrl || post.url)"
+          :src="mediaUrl(freshPost ? post.url : (thumbnailUrl || post.url))"
           :alt="post.caption || `Photo by ${post.user.name}`"
-          sizes="sm:100vw md:800px lg:50vw"
-          format="webp"
           decoding="async"
           class="max-h-[calc(100dvh-12rem-var(--safe-area-top,env(safe-area-inset-top))-var(--safe-area-bottom,env(safe-area-inset-bottom)))] lg:max-h-full w-auto max-w-full object-contain rounded-xl mx-auto block"
           :style="supportsViewTransitionMorph() ? { viewTransitionName: `photo-${post.id}` } : undefined"
-        />
+        >
         <USkeleton
           v-else
           class="w-full rounded-xl"
@@ -266,7 +265,7 @@ onMounted(async () => {
               @click="goBack"
             />
             <UAvatar
-              :src="post.user.avatarUrl || undefined"
+              :src="mediaUrl(post.user.avatarUrl) || undefined"
               :alt="post.user.name"
               :text="post.user.name.slice(0, 2).toUpperCase()"
             />

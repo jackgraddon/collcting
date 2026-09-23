@@ -176,8 +176,8 @@ export function useApi() {
     },
 
     // Push Notifications
-    async subscribePush(subscription: { endpoint?: string, keys?: { auth: string, p256dh: string }, deviceToken?: string }) {
-      return $api<{ success: boolean }>('/api/notifications/subscribe', { method: 'post', body: subscription })
+    async subscribePush(subscription: { platform?: 'web' | 'apns' | 'fcm', endpoint: string, keys?: { auth: string, p256dh: string } }) {
+      return $api<{ subscribed: boolean, platform: string, endpoint: string }>('/api/notifications/subscribe', { method: 'post', body: subscription })
     },
 
     async unsubscribePush(endpoint: string) {

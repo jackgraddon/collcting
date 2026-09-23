@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 const router = useRouter()
 const { accounts, activeAccount, switchAccount } = useAccounts()
+const { mediaUrl } = useMediaUrl()
 const uploadModal = useUploadModal()
 
 const menuOpen = ref(false)
@@ -63,7 +64,7 @@ function goTo(path: string) {
           { type: 'separator' },
           ...accounts.map(a => ({
             label: a.name || (a.user?.username ?? a.serverUrl),
-            avatar: { src: a.user?.avatarUrl ?? undefined, alt: a.name || a.user?.username },
+            avatar: { src: mediaUrl(a.user?.avatarUrl, a.serverUrl) ?? undefined, alt: a.name || a.user?.username },
             suffix: a.serverUrl,
             active: a.id === activeAccount?.id,
             onSelect: () => handleSwitch(a.id)
@@ -74,7 +75,7 @@ function goTo(path: string) {
       >
         <button class="flex flex-col items-center justify-center gap-0.5 w-16 h-full text-muted transition-colors hover:text-default">
           <UAvatar
-            :src="activeAccount?.user?.avatarUrl ?? undefined"
+            :src="mediaUrl(activeAccount?.user?.avatarUrl) ?? undefined"
             :alt="activeAccount?.name || activeAccount?.user?.username"
             size="xs"
           />

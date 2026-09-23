@@ -5,6 +5,7 @@ const api = useApi()
 const { activeAccount, removeAccount, accounts } = useAccounts()
 const { isPwa, permission, notificationStatus, requestPermission, unsubscribe, retry } = usePushNotifications()
 const { platform } = usePlatform()
+const { mediaUrl } = useMediaUrl()
 
 const accountState = reactive({
   name: activeAccount.value?.user?.name ?? '',
@@ -197,7 +198,7 @@ const tabs = computed(() => [
   {
     slot: 'account',
     label: 'Account',
-    avatar: { src: activeAccount.value?.user?.avatarUrl || undefined, alt: activeAccount.value?.user?.name }
+    avatar: { src: mediaUrl(activeAccount.value?.user?.avatarUrl) || undefined, alt: activeAccount.value?.user?.name }
   },
   {
     slot: 'notifications',
@@ -232,7 +233,7 @@ const tabs = computed(() => [
               @click="triggerAvatarUpload"
             >
               <UAvatar
-                :src="activeAccount?.user?.avatarUrl || undefined"
+                :src="mediaUrl(activeAccount?.user?.avatarUrl) || undefined"
                 :alt="activeAccount?.user?.name"
                 size="xl"
               />
