@@ -32,7 +32,7 @@ export function useApi() {
       return $api<AccountUser>('/api/user/me')
     },
 
-    async updateUser(data: { name: string, email: string }) {
+    async updateUser(data: { name?: string, email?: string }) {
       return $api<{ success: boolean }>('/api/user/update', { method: 'patch', body: data })
     },
 

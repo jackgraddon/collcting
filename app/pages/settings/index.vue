@@ -172,9 +172,17 @@ async function onAvatarChange(e: Event) {
 async function onSaveAccount() {
   saving.value = true
   try {
-    await api.updateUser({ name: accountState.name, email: accountState.email })
-    if (activeAccount.value?.user) {
-      activeAccount.value.user.name = accountState.name
+    // Partial update — omit empty fields so server validation doesn't reject them.
+    const body: { name?: string, email?: string } = {}
+    if (accountState.name.trim()) body.name = accountState.name.trim()
+    if (accountState.email.trim()) body.email = accountState.email.trim()
+    if (Object.keys(body).length === 0) {
+      toast.add({ title: 'Nothing to save', description: 'No changes to update.', color: 'warning' })
+      return
+    }
+    await api.updateUser(body)
+    if (activeAccount.value?.user && body.name) {
+      activeAccount.value.user.name = body.name
     }
     toast.add({ title: 'Saved', description: 'Your account has been updated.', color: 'success' })
   } catch (e: unknown) {
