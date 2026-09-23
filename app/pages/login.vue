@@ -22,7 +22,7 @@ async function handleBrowserAuth() {
   loading.value = true
 
   try {
-    let url = serverUrl.value.trim()
+    let url = serverUrl.value.trim().toLowerCase()
     if (!url.startsWith('http')) {
       url = 'https://' + url
     }
@@ -120,7 +120,7 @@ async function handleTokenAuth() {
   loading.value = true
 
   try {
-    let url = serverUrl.value.trim()
+    let url = serverUrl.value.trim().toLowerCase()
     if (!url.startsWith('http')) {
       url = 'https://' + url
     }
