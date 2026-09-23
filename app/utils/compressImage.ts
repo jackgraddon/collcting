@@ -13,8 +13,8 @@ interface CompressOptions {
 const PHOTO_DEFAULTS = { maxDimension: 2048, quality: 0.85 } as const
 const AVATAR_DEFAULTS = { maxDimension: 512, quality: 0.85 } as const
 
-function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
-  return new Promise(resolve => canvas.toBlob(resolve, 'image/webp', quality))
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality))
 }
 
 function toFile(blob: Blob, fallbackName: string): File {
@@ -43,12 +43,20 @@ export async function compressImage(file: Blob, opts: CompressOptions = {}): Pro
       if (!ctx) return input
       ctx.drawImage(bitmap, 0, 0, width, height)
 
-      const output = await canvasToBlob(canvas, quality)
-      // Browsers without a WebP encoder silently return PNG — discard that.
-      if (!output || output.type !== 'image/webp') return input
+      const output = await canvasToBlob(canvas, 'image/webp', quality)
+      const base = (filename ?? input.name).replace(/\.[^.]+$/, '')
+      if (output?.type === 'image/webp') {
+        return new File([output], `${base}.webp`, { type: 'image/webp', lastModified: Date.now() })
+      }
 
-      const name = filename ?? input.name.replace(/\.[^.]+$/, '') + '.webp'
-      return new File([output], name, { type: 'image/webp', lastModified: Date.now() })
+      // No WebP encoder (older Safari silently returns PNG instead) — fall
+      // back to JPEG at the same scaled size so oversized originals (e.g.
+      // 2MB+ phone photos for the 2MB avatar limit) still get small enough.
+      const jpeg = await canvasToBlob(canvas, 'image/jpeg', quality)
+      if (jpeg?.type === 'image/jpeg') {
+        return new File([jpeg], `${base}.jpg`, { type: 'image/jpeg', lastModified: Date.now() })
+      }
+      return input
     } finally {
       bitmap.close()
     }
