@@ -2,7 +2,10 @@
   <header class="sticky top-0 z-50 shrink-0">
     <div class="absolute inset-x-0 -top-[var(--safe-area-top,env(safe-area-inset-top))] bottom-0 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl" />
 
-    <div class="relative flex items-center justify-between px-4 min-h-12 py-2 pt-[var(--safe-area-top,env(safe-area-inset-top))]">
+    <div
+      class="relative flex items-center justify-between px-4 min-h-12 py-2"
+      :class="safeAreaTop ? 'pt-[var(--safe-area-top,env(safe-area-inset-top))]' : ''"
+    >
       <NuxtLink
         to="/"
         class="flex items-center gap-2"
@@ -42,6 +45,15 @@
 
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+
+withDefaults(defineProps<{
+  // False when another element (e.g. the beta banner) already sits in the
+  // top safe area above the header. The background extension stays so the
+  // safe strip is covered once the header sticks on scroll.
+  safeAreaTop?: boolean
+}>(), {
+  safeAreaTop: true
+})
 
 const route = useRoute()
 const uploadModal = useUploadModal()

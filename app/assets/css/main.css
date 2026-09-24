@@ -111,7 +111,6 @@
   to { opacity: 0; }
 }
 
-@media (prefers-reduced-motion: reduce) {
 /* Workaround for WebKit bug #301994: env(safe-area-inset-top) returns 0 in iOS standalone PWA mode.
    Affects iOS 26.1+. Revert when Apple fixes the bug — env() will return the real value and max() picks it. */
 @supports (-webkit-touch-callout: none) {
@@ -122,6 +121,8 @@
     }
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
 
 ::view-transition-group(*) {
     animation-duration: 0ms;

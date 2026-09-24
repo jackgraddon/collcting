@@ -99,12 +99,12 @@ onMounted(() => {
   <UApp>
     <div
       v-if="isBeta"
-      class="bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 text-center text-xs py-1.5 px-4"
+      class="bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 text-center text-xs py-1.5 px-4 pt-[var(--safe-area-top,env(safe-area-inset-top))]"
     >
       Beta — You're using a development version. Things may break.
     </div>
 
-    <CollctHeader />
+    <CollctHeader :safe-area-top="!isBeta" />
 
     <UMain class="px-4 pb-[calc(3rem+var(--safe-area-bottom,env(safe-area-inset-bottom)))] lg:pb-0">
       <NuxtPage :keepalive="{ max: 10, exclude: ['login', 'settings', 'account'] }" />

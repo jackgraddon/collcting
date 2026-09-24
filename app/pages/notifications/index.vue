@@ -3,6 +3,7 @@ const router = useRouter()
 const api = useApi()
 const { shouldPrompt, isPwa, requestPermission, dismissPrompt } = usePushNotifications()
 const { mediaUrl } = useMediaUrl()
+const { refresh: refreshUnreadCount } = useUnreadCount()
 
 const showPrompt = computed(() => shouldPrompt.value)
 
@@ -53,6 +54,7 @@ async function markRead(n: Notification) {
   if (n.isRead) return
   n.isRead = true
   await api.markNotificationsRead({ ids: [n.id] })
+  refreshUnreadCount()
 }
 
 async function markAllRead() {
@@ -62,12 +64,15 @@ async function markAllRead() {
     n.isRead = true
   }
   await api.markNotificationsRead({ all: true })
+  refreshUnreadCount()
 }
 
 async function dismissNotification(n: Notification) {
+  const wasUnread = !n.isRead
   notifications.value = notifications.value.filter(item => item.id !== n.id)
   try {
     await api.dismissNotification(n.id)
+    if (wasUnread) refreshUnreadCount()
   } catch {
     // Re-add on failure
     notifications.value.push(n)

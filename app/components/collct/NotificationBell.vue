@@ -1,17 +1,6 @@
 <script lang="ts" setup>
 const route = useRoute()
-const api = useApi()
-
-const unreadCount = ref(0)
-
-async function fetchCount() {
-  try {
-    const data = await api.getUnreadCount()
-    unreadCount.value = data.count
-  } catch {
-    // Silently fail
-  }
-}
+const { count: unreadCount, refresh: fetchCount } = useUnreadCount()
 
 fetchCount()
 
