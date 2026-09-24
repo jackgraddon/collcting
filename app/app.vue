@@ -4,7 +4,7 @@ const router = useRouter()
 const { emit: emitUpload } = useUploadBus()
 const { open: momentOpen, openMomentModal, onCaptured } = useMomentCaptureModal()
 const uploadModal = useUploadModal()
-const { canCapture, isActive, capturedToday } = useMoments()
+const { canCapture, isActive, capturedToday, refreshActive } = useMoments()
 const toast = useToast()
 const { public: { isBeta } } = useRuntimeConfig()
 const { isNative } = usePlatform()
@@ -22,24 +22,36 @@ useSeoMeta({
   ogDescription: 'A friends-first photo sharing app. No algorithm. No tracking. No strangers.'
 })
 
+async function handleMomentDeepLink() {
+  // Strip the param first so a reload doesn't re-trigger.
+  router.replace({ query: {} })
+  // Moments state may be empty/stale on cold start — refresh before deciding,
+  // otherwise we'd wrongly report "window has passed" and eat the deep link.
+  try {
+    await refreshActive()
+  } catch {
+    // Offline — decide on whatever state we have
+  }
+  if (canCapture.value) {
+    openMomentModal()
+  } else {
+    const reason = capturedToday.value
+      ? 'You already captured your moment today.'
+      : !isActive.value
+          ? 'The moment window has passed.'
+          : 'Moment capture isn\'t available right now.'
+    toast.add({
+      title: 'Missed the moment',
+      description: `${reason} You can still post anytime.`,
+      color: 'neutral',
+      icon: 'i-lucide-clock'
+    })
+  }
+}
+
 watch(() => route.query.moment, (val) => {
   if (val === 'capture') {
-    router.replace({ query: {} })
-    if (canCapture.value) {
-      openMomentModal()
-    } else {
-      const reason = capturedToday.value
-        ? 'You already captured your moment today.'
-        : !isActive.value
-            ? 'The moment window has passed.'
-            : 'Moment capture isn\'t available right now.'
-      toast.add({
-        title: 'Missed the moment',
-        description: `${reason} You can still post anytime.`,
-        color: 'neutral',
-        icon: 'i-lucide-clock'
-      })
-    }
+    handleMomentDeepLink()
   }
 }, { immediate: true })
 
@@ -51,6 +63,17 @@ function onMomentCaptured(file, at) {
 function onUploaded(post) {
   emitUpload(post)
   uploadModal.closeModal()
+}
+
+// Navigation requests from the service worker (notification taps when the
+// app window is already open and couldn't be navigated directly).
+if (import.meta.client && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    const data = event.data
+    if (data?.type === 'COLLCT_NAVIGATE' && typeof data.url === 'string' && data.url.startsWith('/')) {
+      router.push(data.url)
+    }
+  })
 }
 
 onMounted(() => {

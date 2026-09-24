@@ -20,15 +20,40 @@ function getSubscriptionCredentials() {
 }
 
 function navigateToPath(url) {
-  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-    const targetUrl = `${self.registration.scope}${url.replace(/^\//, '')}`
-    for (const client of clientList) {
-      if (client.url === targetUrl && 'focus' in client) {
-        return client.focus()
+  const targetUrl = new URL(url, self.registration.scope).href;
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
+    const appClient = clientList.find((client) => {
+      try {
+        return new URL(client.url).origin === self.location.origin;
+      } catch {
+        return false;
       }
+    });
+
+    if (appClient) {
+      // An app window is already open: navigate it in place. openWindow()
+      // merely focuses the existing window without navigating (notably on
+      // iOS), which silently drops the deep link.
+      if ('navigate' in appClient) {
+        try {
+          const navigated = await appClient.navigate(targetUrl);
+          return 'focus' in navigated ? navigated.focus() : undefined;
+        } catch {
+          // Fall through to focus + message below
+        }
+      }
+      if ('focus' in appClient) {
+        await appClient.focus();
+      }
+      // Ask the page to route itself (covers browsers without navigate()).
+      if (typeof appClient.postMessage === 'function') {
+        appClient.postMessage({ type: 'COLLCT_NAVIGATE', url });
+      }
+      return undefined;
     }
-    return self.clients.openWindow(url)
-  })
+
+    return self.clients.openWindow(targetUrl);
+  });
 }
 
 // --- Push event ---
