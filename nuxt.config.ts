@@ -32,7 +32,21 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'manifest', href: '/manifest.webmanifest' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
-        { rel: 'apple-touch-icon', sizes: '512x512', href: '/icon-512x512.png' }
+        { rel: 'apple-touch-icon', sizes: '512x512', href: '/icon-512x512.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)', href: '/splash/splash-750x1334.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)', href: '/splash/splash-1334x750.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)', href: '/splash/splash-1179x2556.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)', href: '/splash/splash-2556x1179.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)', href: '/splash/splash-1290x2796.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)', href: '/splash/splash-2796x1290.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)', href: '/splash/splash-1536x2048.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)', href: '/splash/splash-2048x1536.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)', href: '/splash/splash-1640x2360.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)', href: '/splash/splash-2360x1640.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)', href: '/splash/splash-1668x2388.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)', href: '/splash/splash-2388x1668.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)', href: '/splash/splash-2048x2732.png' },
+        { rel: 'apple-touch-startup-image', media: '(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)', href: '/splash/splash-2732x2048.png' }
       ]
     }
   },
@@ -157,8 +171,9 @@ export default defineNuxtConfig({
           options: {
             cacheName: 'collct-media',
             expiration: {
-              maxEntries: 300,
-              maxAgeSeconds: 365 * 24 * 60 * 60
+              maxEntries: 150,
+              maxAgeSeconds: 365 * 24 * 60 * 60,
+              purgeOnQuotaError: true
             },
             cacheableResponse: { statuses: [0, 200] }
           }
@@ -169,6 +184,21 @@ export default defineNuxtConfig({
           handler: 'NetworkOnly'
         },
         {
+          // Heavy photo reads render instantly from cache and revalidate in
+          // the background — repeat visits feel fast even on slow networks.
+          // Mutations are never GETs, so no stale-write risk.
+          urlPattern: /^https?:\/\/.*\/api\/(photos([/?]|$)|users\/[^/]+\/photos)/,
+          handler: 'StaleWhileRevalidate',
+          options: {
+            cacheName: 'collct-feed',
+            expiration: {
+              maxEntries: 100,
+              maxAgeSeconds: 24 * 60 * 60,
+              purgeOnQuotaError: true
+            }
+          }
+        },
+        {
           urlPattern: /^https?:\/\/.*\/api\//,
           handler: 'NetworkFirst',
           options: {
@@ -176,7 +206,8 @@ export default defineNuxtConfig({
             networkTimeoutSeconds: 3,
             expiration: {
               maxEntries: 100,
-              maxAgeSeconds: 24 * 60 * 60
+              maxAgeSeconds: 24 * 60 * 60,
+              purgeOnQuotaError: true
             }
           }
         }

@@ -1,7 +1,6 @@
 type NotificationStatus = 'unsupported' | 'disabled' | 'pending' | 'active' | 'stale' | 'error'
 
 const SUBSCRIPTION_STORAGE_PREFIX = 'collct-push-sub-'
-const PUSH_SUBSCRIPTION_KEY = 'collct-push-subscription'
 const DISMISS_KEY = 'collct-push-prompt-dismissed'
 const DISMISS_DAYS = 7
 const VALIDATE_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
@@ -11,18 +10,28 @@ export function usePushNotifications() {
   const { activeAccount } = useAccounts()
   const { isNative, platform } = usePlatform()
 
-  const isSupported = computed(() => {
-    if (isNative.value) return true
-    return import.meta.client
-      && 'serviceWorker' in navigator
-      && 'PushManager' in window
-      && 'Notification' in window
-  })
-
   const isPwa = computed(() => {
     if (!import.meta.client || isNative.value) return false
     return (navigator as Navigator & { standalone?: boolean }).standalone === true
       || window.matchMedia('(display-mode: standalone)').matches
+  })
+
+  function isIosDevice(): boolean {
+    if (!import.meta.client) return false
+    return /iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  }
+
+  const isSupported = computed(() => {
+    if (isNative.value) return true
+    if (!import.meta.client) return false
+    // iOS only delivers web push to installed PWAs — a Safari tab can never
+    // subscribe, so report unsupported (with install guidance) instead of
+    // failing later with an error/retry loop.
+    if (isIosDevice() && !isPwa.value) return false
+    return 'serviceWorker' in navigator
+      && 'PushManager' in window
+      && 'Notification' in window
   })
 
   const permission = ref<NotificationPermission>('default')
@@ -76,15 +85,13 @@ export function usePushNotifications() {
 
   function storeSwSubscriptionCredentials(endpoint: string) {
     if (!import.meta.client || !activeAccount.value) return
-    try {
-      localStorage.setItem(PUSH_SUBSCRIPTION_KEY, JSON.stringify({
-        endpoint,
-        serverUrl: activeAccount.value.serverUrl,
-        token: activeAccount.value.token
-      }))
-    } catch {
-      // Storage full or unavailable
-    }
+    pushCredentials.save({
+      endpoint,
+      serverUrl: activeAccount.value.serverUrl,
+      token: activeAccount.value.token
+    }).catch(() => {
+      // Storage unavailable — SW re-subscribe reporting degrades gracefully
+    })
   }
 
   function urlBase64ToUint8Array(base64String: string): ArrayBuffer {

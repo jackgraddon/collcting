@@ -9,14 +9,48 @@
 // notificationclose is intentionally NOT handled — OS-level dismiss does not
 // modify server state. Only in-app dismiss (user taps X) calls PATCH /api/notifications/:id/dismiss.
 
-const PUSH_SUBSCRIPTION_KEY = 'collct-push-subscription'
+// Push credentials live in IndexedDB — localStorage does not exist in
+// service worker scope. Records are keyed per endpoint so multi-account
+// setups report rotations to the right server. The page writes them via
+// the matching helpers in app/utils/pushCredentials.ts (same DB/store names).
+const CREDS_DB = 'collct-push-credentials'
+const CREDS_STORE = 'credentials'
 
-function getSubscriptionCredentials() {
-  try {
-    return JSON.parse(localStorage.getItem(PUSH_SUBSCRIPTION_KEY) || 'null')
-  } catch {
-    return null
-  }
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(CREDS_DB, 1)
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore(CREDS_STORE, { keyPath: 'endpoint' })
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function getCredentials(endpoint) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction(CREDS_STORE, 'readonly').objectStore(CREDS_STORE).get(endpoint)
+    req.onsuccess = () => resolve(req.result || null)
+    req.onerror = () => reject(req.error)
+  }))
+}
+
+function saveCredentials(record) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(CREDS_STORE, 'readwrite')
+    tx.objectStore(CREDS_STORE).put(record)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  }))
+}
+
+function deleteCredentials(endpoint) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(CREDS_STORE, 'readwrite')
+    tx.objectStore(CREDS_STORE).delete(endpoint)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  }))
 }
 
 function navigateToPath(url) {
@@ -170,22 +204,31 @@ self.addEventListener('pushsubscriptionchange', (event) => {
       return self.registration.pushManager.subscribe(
         event.oldSubscription?.options || { userVisibleOnly: true }
       )
-    }).then((subscription) => {
+    }).then(async (subscription) => {
       console.log('[push] Re-registered subscription:', subscription.endpoint)
 
-      const creds = getSubscriptionCredentials()
-      if (creds?.serverUrl && creds?.token) {
-        return fetch(`${creds.serverUrl}/api/notifications/subscribe`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${creds.token}`
-          },
-          body: JSON.stringify(subscription.toJSON())
-        }).catch((err) => {
-          console.warn('[push] Failed to send re-subscription to server:', err)
-        })
+      // Look up credentials by the OLD endpoint (per-endpoint map supports
+      // multi-account: each subscription reports to its own server).
+      const oldEndpoint = event.oldSubscription?.endpoint || null
+      const creds = oldEndpoint ? await getCredentials(oldEndpoint).catch(() => null) : null
+      if (!creds?.serverUrl || !creds?.token) return
+
+      // Migrate the record so future rotations keep resolving.
+      await saveCredentials({ endpoint: subscription.endpoint, serverUrl: creds.serverUrl, token: creds.token }).catch(() => {})
+      if (oldEndpoint && oldEndpoint !== subscription.endpoint) {
+        await deleteCredentials(oldEndpoint).catch(() => {})
       }
+
+      return fetch(`${creds.serverUrl}/api/notifications/subscribe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${creds.token}`
+        },
+        body: JSON.stringify({ platform: 'web', ...subscription.toJSON() })
+      }).catch((err) => {
+        console.warn('[push] Failed to send re-subscription to server:', err)
+      })
     }).catch((err) => {
       console.error('[push] Failed to re-register on subscription change:', err)
     })

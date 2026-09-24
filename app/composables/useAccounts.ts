@@ -60,6 +60,9 @@ export function useAccounts() {
       } catch {
         // Ignore
       }
+      pushCredentials.deleteForServer(account.serverUrl).catch(() => {
+        // Ignore — stale SW credentials fail closed (server rejects the token)
+      })
     }
     save()
   }
