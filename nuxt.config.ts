@@ -161,6 +161,14 @@ export default defineNuxtConfig({
       ]
     },
     workbox: {
+      // No navigation fallback: with ssr:false the Vercel build emits no
+      // static HTML, so there is no precached shell for createHandlerBoundToURL.
+      // Leaving the default '/' makes SW evaluation throw non-precached-url,
+      // which aborts registration of every later runtime-caching route.
+      // Navigations pass through to the network (Vercel serves the SPA shell
+      // per route); '' is falsy-but-not-nullish so it survives the module's
+      // `??` defaulting and the template's `if (navigateFallback)` gate.
+      navigateFallback: '',
       globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       importScripts: ['/push-handler.js'],
       runtimeCaching: [
