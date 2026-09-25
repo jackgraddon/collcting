@@ -3,7 +3,7 @@
     <div class="absolute inset-x-0 -top-[var(--safe-area-top,env(safe-area-inset-top))] bottom-0 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl" />
 
     <div
-      class="relative flex items-center justify-between px-4 min-h-12 py-2"
+      class="relative flex items-center justify-between px-4 min-h-12 py-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]"
       :class="safeAreaTop ? 'pt-[var(--safe-area-top,env(safe-area-inset-top))]' : ''"
     >
       <NuxtLink

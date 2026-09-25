@@ -20,7 +20,7 @@ function goTo(path: string) {
 
 <template>
   <nav class="fixed bottom-0 inset-x-0 z-50 lg:hidden border-t border-muted bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl pb-[var(--safe-area-bottom,env(safe-area-inset-bottom))]">
-    <div class="flex items-center justify-around h-14">
+    <div class="flex items-center justify-around h-14 pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]">
       <NuxtLink
         to="/"
         class="flex flex-col items-center justify-center gap-0.5 w-16 h-full text-muted transition-colors"
