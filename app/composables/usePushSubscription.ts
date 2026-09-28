@@ -91,6 +91,35 @@ export function usePushSubscription() {
     }
   }
 
+  // The VAPID key the current subscription was created with, per account.
+  // Server operators may rotate keys; subscriptions bound to the old key stop
+  // delivering, so the stored key is compared on every refresh and a mismatch
+  // triggers a full rotate (unsubscribe old + subscribe new).
+  function getStoredVapidKey(): string | null {
+    if (!import.meta.client) return null
+    const key = getSubscriptionKey()
+    if (!key) return null
+    return localStorage.getItem(`${key}-vapid`)
+  }
+
+  function setStoredVapidKey(value: string) {
+    if (!import.meta.client) return
+    const key = getSubscriptionKey()
+    if (!key) return
+    try {
+      localStorage.setItem(`${key}-vapid`, value)
+    } catch {
+      // Storage unavailable — rotation check degrades gracefully
+    }
+  }
+
+  function clearStoredVapidKey() {
+    if (!import.meta.client) return
+    const key = getSubscriptionKey()
+    if (!key) return
+    localStorage.removeItem(`${key}-vapid`)
+  }
+
   function storeCredentials(endpoint: string) {
     if (!import.meta.client || !activeAccount.value) return
     pushCredentials.save({
@@ -177,6 +206,7 @@ export function usePushSubscription() {
       hasLocalSubscription.value = true
       setSubscribedForAccount(true)
       storeCredentials(subscription.endpoint)
+      setStoredVapidKey(vapidKey.value)
       await storeDisplayMethod()
       return true
     } catch (err) {
@@ -211,6 +241,7 @@ export function usePushSubscription() {
       hasLocalSubscription.value = false
       method.value = null
       setSubscribedForAccount(false)
+      clearStoredVapidKey()
       busy.value = false
     }
   }
@@ -230,10 +261,22 @@ export function usePushSubscription() {
         setSubscribedForAccount(false)
         return
       }
+      // Key rotation: the stored key differs from the server's live key, so
+      // this subscription is dead — rotate (unsubscribe old + subscribe new).
+      // Migration: no stored key yet means a pre-rotation install — record the
+      // live key without rotating.
+      const storedKey = getStoredVapidKey()
+      if (vapidKey.value && storedKey && storedKey !== vapidKey.value) {
+        console.info('[push] VAPID key rotated, re-subscribing')
+        await unsubscribe()
+        await subscribe()
+        return
+      }
       await api.subscribePush(webSubscriptionPayload(subscription))
       hasLocalSubscription.value = true
       setSubscribedForAccount(true)
       storeCredentials(subscription.endpoint)
+      if (vapidKey.value) setStoredVapidKey(vapidKey.value)
       await storeDisplayMethod()
     } catch {
       // Offline or SW not ready — keep last known state

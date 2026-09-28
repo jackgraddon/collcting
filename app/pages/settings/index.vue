@@ -16,6 +16,7 @@ const saving = ref(false)
 const avatarInput = ref<HTMLInputElement | null>(null)
 const uploadingAvatar = ref(false)
 const retrying = ref(false)
+const testingPush = ref(false)
 
 const serverVersion = ref<string | null>(null)
 
@@ -115,6 +116,33 @@ async function retryNotifications() {
     }
   } finally {
     retrying.value = false
+  }
+}
+
+async function sendTestPush() {
+  testingPush.value = true
+  try {
+    const { results } = await api.sendTestPush()
+    console.debug('[push] Test results:', results)
+    if (!results.length) {
+      toast.add({ title: 'No subscriptions', description: 'The server has no push subscriptions for this account.', color: 'warning' })
+      return
+    }
+    const sent = results.filter(r => r.status === 'sent').length
+    const failed = results.filter(r => r.status === 'failed')
+    if (failed.length === 0) {
+      toast.add({ title: 'Test push sent', description: `Delivered to ${sent} endpoint${sent === 1 ? '' : 's'}. Check your notifications.`, color: 'success' })
+    } else {
+      toast.add({ title: 'Test push partially failed', description: failed[0]?.error || `${failed.length} endpoint${failed.length === 1 ? '' : 's'} failed.`, color: 'error' })
+    }
+  } catch (e: unknown) {
+    const err = e as { statusCode?: number, data?: { statusMessage?: string } }
+    const description = err.statusCode === 429
+      ? 'Rate limited — try again in a few minutes.'
+      : err.data?.statusMessage ?? 'Something went wrong.'
+    toast.add({ title: 'Test push failed', description, color: 'error' })
+  } finally {
+    testingPush.value = false
   }
 }
 
@@ -324,6 +352,22 @@ const tabs = computed(() => [
               @click="retryNotifications"
             >
               Retry
+            </UButton>
+          </div>
+
+          <div
+            v-if="notifStatus === 'on'"
+            class="flex justify-end"
+          >
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              icon="i-lucide-bell-ring"
+              :loading="testingPush"
+              @click="sendTestPush"
+            >
+              Send test push
             </UButton>
           </div>
         </div>

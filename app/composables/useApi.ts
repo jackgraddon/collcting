@@ -188,6 +188,13 @@ export function useApi() {
       return $api<{ vapidPublicKey: string }>('/api/notifications/vapid-key')
     },
 
+    async sendTestPush() {
+      return $api<{
+        tested: boolean
+        results: { platform: string, status: 'sent' | 'deleted' | 'failed' | 'skipped', error: string | null, endpointSuffix: string }[]
+      }>('/api/notifications/test', { method: 'post' })
+    },
+
     // Version (health check)
     async getVersion() {
       return $api<{ version: string }>('/api/version')
