@@ -1,31 +1,14 @@
 export type PushSubscriptionStatus = 'unsupported' | 'denied' | 'off' | 'on' | 'error'
-export type PushDisplayMethod = 'dwp' | 'sw'
 
 const SUBSCRIPTION_STORAGE_PREFIX = 'collct-push-sub-'
 const DISMISS_KEY = 'collct-push-prompt-dismissed'
 const DISMISS_DAYS = 7
 const VALIDATE_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
-const DWP_FLAG_KEY = 'dwp-native-display'
 
 function isIosDevice(): boolean {
   if (!import.meta.client) return false
   return /iPad|iPhone|iPod/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-}
-
-// Declarative Web Push renders natively only in Safari 18.4+. Everywhere
-// else (Chrome, Firefox, older Safari) the service worker must display
-// manually — defaulting to manual is the only safe fallback, since skipping
-// on a non-DWP browser would swallow the notification silently.
-function detectDwpNativeDisplay(): boolean {
-  if (!import.meta.client) return false
-  const ua = navigator.userAgent
-  if (/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|SamsungBrowser/.test(ua)) return false
-  const match = ua.match(/Version\/(\d+)(?:\.(\d+))?/)
-  if (!match) return false
-  const major = Number(match[1])
-  const minor = Number(match[2] ?? 0)
-  return major > 18 || (major === 18 && minor >= 4)
 }
 
 export function usePushSubscription() {
@@ -46,7 +29,6 @@ export function usePushSubscription() {
 
   const permission = ref<NotificationPermission>('default')
   const hasLocalSubscription = ref(false)
-  const method = ref<PushDisplayMethod | null>(null)
   const busy = ref(false)
   const failed = ref(false)
   const dismissed = ref(false)
@@ -131,13 +113,6 @@ export function usePushSubscription() {
     })
   }
 
-  async function storeDisplayMethod(): Promise<PushDisplayMethod> {
-    const dwp = detectDwpNativeDisplay()
-    method.value = dwp ? 'dwp' : 'sw'
-    await pushCredentials.setMeta(DWP_FLAG_KEY, dwp).catch(() => {})
-    return method.value
-  }
-
   function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
@@ -207,7 +182,6 @@ export function usePushSubscription() {
       setSubscribedForAccount(true)
       storeCredentials(subscription.endpoint)
       setStoredVapidKey(vapidKey.value)
-      await storeDisplayMethod()
       return true
     } catch (err) {
       console.error('[push] Subscribe failed:', err)
@@ -239,7 +213,6 @@ export function usePushSubscription() {
       console.error('[push] Unsubscribe failed:', err)
     } finally {
       hasLocalSubscription.value = false
-      method.value = null
       setSubscribedForAccount(false)
       clearStoredVapidKey()
       busy.value = false
@@ -257,17 +230,16 @@ export function usePushSubscription() {
       permission.value = Notification.permission
       if (!subscription) {
         hasLocalSubscription.value = false
-        method.value = null
         setSubscribedForAccount(false)
         return
       }
-      // Key rotation: the stored key differs from the server's live key, so
-      // this subscription is dead — rotate (unsubscribe old + subscribe new).
-      // Migration: no stored key yet means a pre-rotation install — record the
-      // live key without rotating.
+      // Key rotation: no stored key (pre-rotation install) or a mismatch
+      // means this subscription may be bound to a dead key — rotate
+      // (unsubscribe old + subscribe fresh) rather than trust it. One-shot:
+      // subscribe() records the live key, so this won't loop.
       const storedKey = getStoredVapidKey()
-      if (vapidKey.value && storedKey && storedKey !== vapidKey.value) {
-        console.info('[push] VAPID key rotated, re-subscribing')
+      if (vapidKey.value && storedKey !== vapidKey.value) {
+        console.info('[push] VAPID key unknown or rotated, re-subscribing')
         await unsubscribe()
         await subscribe()
         return
@@ -277,7 +249,6 @@ export function usePushSubscription() {
       setSubscribedForAccount(true)
       storeCredentials(subscription.endpoint)
       if (vapidKey.value) setStoredVapidKey(vapidKey.value)
-      await storeDisplayMethod()
     } catch {
       // Offline or SW not ready — keep last known state
     }
@@ -314,7 +285,6 @@ export function usePushSubscription() {
   return {
     status,
     permission,
-    method,
     isSupported,
     busy,
     shouldPrompt,

@@ -16,7 +16,6 @@
 const CREDS_DB = 'collct-push-credentials'
 const CREDS_STORE = 'credentials'
 const META_STORE = 'meta'
-const DWP_FLAG_KEY = 'dwp-native-display'
 
 function idbOpen() {
   return new Promise((resolve, reject) => {
@@ -58,21 +57,6 @@ function deleteCredentials(endpoint) {
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
   }))
-}
-
-function getMeta(key) {
-  return idbOpen().then(db => new Promise((resolve, reject) => {
-    const req = db.transaction(META_STORE, 'readonly').objectStore(META_STORE).get(key)
-    req.onsuccess = () => resolve(req.result ? req.result.value : null)
-    req.onerror = () => reject(req.error)
-  }))
-}
-
-// True only with an explicit recorded capability — any doubt (no record,
-// read failure, old install) falls back to manual display. Skipping must
-// never swallow a notification silently.
-function dwpNativeDisplay() {
-  return getMeta(DWP_FLAG_KEY).then(value => value === true).catch(() => false)
 }
 
 function refreshUnreadBadge() {
@@ -153,15 +137,13 @@ self.addEventListener('push', (event) => {
 
   const isDwp = raw.web_push === 8030 && raw.notification
 
-  // DWP-capable browser (capability recorded at subscribe time): the
-  // notification is already displayed natively — showing it again would
-  // duplicate it. Anything else is displayed manually below.
+  // Always display manually, even for DWP payloads on DWP-capable browsers:
+  // the OS replaces by tag (same tag = replacement, not stacking), while
+  // skipping risks total silence if native display doesn't fire. Per API.md
+  // service-worker requirements.
   if (isDwp) {
     event.waitUntil(
-      dwpNativeDisplay().then((native) => {
-        if (native) return refreshUnreadBadge()
-        return showDwpNotification(raw.notification)
-      }).catch(() => showDwpNotification(raw.notification))
+      showDwpNotification(raw.notification).then(() => refreshUnreadBadge()).catch(() => {})
     )
     return
   }

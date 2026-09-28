@@ -137,9 +137,12 @@ async function sendTestPush() {
     }
   } catch (e: unknown) {
     const err = e as { statusCode?: number, data?: { statusMessage?: string } }
-    const description = err.statusCode === 429
-      ? 'Rate limited — try again in a few minutes.'
-      : err.data?.statusMessage ?? 'Something went wrong.'
+    let description = err.data?.statusMessage ?? 'Something went wrong.'
+    if (err.statusCode === 429) {
+      description = 'Rate limited — try again in a few minutes.'
+    } else if (err.statusCode === 404) {
+      description = 'This server doesn\'t support test pushes yet — it needs an update.'
+    }
     toast.add({ title: 'Test push failed', description, color: 'error' })
   } finally {
     testingPush.value = false
