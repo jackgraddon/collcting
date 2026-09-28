@@ -175,8 +175,8 @@ export function useApi() {
       return $api<{ ok: boolean }>(`/api/notifications/${id}/dismiss`, { method: 'patch' })
     },
 
-    // Push Notifications
-    async subscribePush(subscription: { platform?: 'web' | 'apns' | 'fcm', endpoint: string, keys?: { auth: string, p256dh: string } }) {
+    // Push Notifications (Web Push only — the sole platform with a sender)
+    async subscribePush(subscription: { platform: 'web', endpoint: string, keys: { auth: string, p256dh: string } }) {
       return $api<{ subscribed: boolean, platform: string, endpoint: string }>('/api/notifications/subscribe', { method: 'post', body: subscription })
     },
 

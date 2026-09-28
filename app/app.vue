@@ -7,7 +7,7 @@ const uploadModal = useUploadModal()
 const { canCapture, isActive, capturedToday, refreshActive } = useMoments()
 const toast = useToast()
 const { public: { isBeta } } = useRuntimeConfig()
-const { isNative } = usePlatform()
+const { refresh: refreshUnreadCount } = useUnreadCount()
 
 useHead({
   htmlAttrs: {
@@ -22,7 +22,14 @@ useSeoMeta({
   ogDescription: 'A friends-first photo sharing app. No algorithm. No tracking. No strangers.'
 })
 
+let lastMomentLinkAt = 0
+
 async function handleMomentDeepLink() {
+  // Dedupe: the SW re-posts the navigate message for cold-start delivery,
+  // and the query + message paths can both land — handle once per tap.
+  const now = Date.now()
+  if (now - lastMomentLinkAt < 5000) return
+  lastMomentLinkAt = now
   // Strip the param first so a reload doesn't re-trigger.
   router.replace({ query: {} })
   // Moments state may be empty/stale on cold start — refresh before deciding,
@@ -65,34 +72,18 @@ function onUploaded(post) {
   uploadModal.closeModal()
 }
 
-// Navigation requests from the service worker (notification taps when the
-// app window is already open and couldn't be navigated directly).
+// Navigation + badge requests from the service worker.
 if (import.meta.client && 'serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (event) => {
     const data = event.data
-    if (data?.type === 'COLLCT_NAVIGATE' && typeof data.url === 'string' && data.url.startsWith('/')) {
+    if (!data || typeof data !== 'object') return
+    if (data.type === 'COLLCT_NAVIGATE' && typeof data.url === 'string' && data.url.startsWith('/')) {
       router.push(data.url)
+    } else if (data.type === 'COLLCT_UNREAD_REFRESH') {
+      refreshUnreadCount()
     }
   })
 }
-
-onMounted(() => {
-  if (!isNative.value) return
-
-  import('@capacitor/push-notifications').then(({ PushNotifications }) => {
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      const title = notification.notification?.title || 'Collct'
-      const body = notification.notification?.body || ''
-
-      toast.add({
-        title,
-        description: body,
-        color: 'primary',
-        icon: 'i-lucide-bell'
-      })
-    })
-  })
-})
 </script>
 
 <template>

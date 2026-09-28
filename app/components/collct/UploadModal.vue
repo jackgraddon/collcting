@@ -205,7 +205,8 @@ async function saveOfflineDraft() {
           <div class="flex items-center gap-2">
             <UIcon
               :name="momentMode ? 'i-lucide-aperture' : 'i-solar-upload-square-linear'"
-              class="w-5 h-5 text-primary"
+              class="w-5 h-5"
+              :class="momentMode ? 'text-success' : 'text-primary'"
             />
             <span class="font-semibold">{{ momentMode ? 'Share moment' : 'Upload photo' }}</span>
           </div>
@@ -222,7 +223,7 @@ async function saveOfflineDraft() {
           <div
             v-if="preview"
             class="relative rounded-xl border-2 border-solid overflow-hidden"
-            :class="momentMode ? 'border-primary/50' : 'border-primary'"
+            :class="momentMode ? 'border-success/50' : 'border-primary'"
           >
             <img
               :src="preview"
@@ -236,7 +237,8 @@ async function saveOfflineDraft() {
             class="grid grid-cols-2 gap-3"
           >
             <button
-              class="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-700 py-10 text-center transition-colors hover:border-primary hover:bg-primary/5"
+              class="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-700 py-10 text-center transition-colors"
+              :class="momentMode ? 'hover:border-success hover:bg-success/5' : 'hover:border-primary hover:bg-primary/5'"
               @click="triggerCameraCapture"
             >
               <UIcon
@@ -253,7 +255,8 @@ async function saveOfflineDraft() {
               </div>
             </button>
             <button
-              class="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-700 py-10 text-center transition-colors hover:border-primary hover:bg-primary/5"
+              class="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-700 py-10 text-center transition-colors"
+              :class="momentMode ? 'hover:border-success hover:bg-success/5' : 'hover:border-primary hover:bg-primary/5'"
               @click="triggerLibraryPicker"
             >
               <UIcon
@@ -384,7 +387,7 @@ async function saveOfflineDraft() {
               Cancel
             </UButton>
             <UButton
-              color="primary"
+              :color="momentMode ? 'success' : 'primary'"
               variant="solid"
               :loading="uploading"
               :disabled="!canSubmit"

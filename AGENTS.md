@@ -39,6 +39,12 @@ PWA via `@vite-pwa/nuxt` (Workbox). Mobile via Capacitor (`@capacitor/*`).
 - **Partial updates**: `PATCH /user/update` rejects invalid values, so omit empty fields.
 - **Safe areas**: `pt-[var(--safe-area-top,env(safe-area-inset-top))]` pattern; the header's
   `safeAreaTop` prop drops its duplicate padding when something (e.g. beta banner) sits above it.
+  `app/plugins/safe-area.client.ts` measures real insets at runtime (WebKit #301994 makes
+  `env()` lie in iOS standalone PWAs) — trust it over static assumptions. As of iOS 27 the OS
+  reserves the status bar regardless of `black-translucent`, so there is no edge-to-edge
+  behind it; keep `black-translucent` anyway so a future iOS that restores overlay behavior
+  lights up automatically. Installed-PWA metadata (status-bar style, manifest) is frozen at
+  install time — testers must delete/re-add the Home Screen icon to pick up changes.
 - **Capacitor**: dynamic `import()` only — static `@capacitor/*` imports break web builds.
 - **Workbox**: routes are first-match-wins — order specific before generic. `navigateFallback`
   stays `''`: with `ssr: false` the build emits no static HTML, so any fallback URL makes

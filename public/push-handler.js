@@ -2,9 +2,9 @@
 // via workbox.importScripts in nuxt.config.ts
 //
 // Supports both Declarative Web Push (DWP, Safari 18.4+) and legacy Push API.
-// The server sends a single declarative payload; Safari renders it natively.
-// Chrome/Firefox never wake the SW for DWP payloads, so we handle both formats
-// in the push event as a fallback.
+// The server sends a single declarative payload. On DWP-capable browsers
+// (capability recorded at subscribe time) the browser displays natively and
+// the SW skips showNotification; everywhere else the SW displays manually.
 //
 // notificationclose is intentionally NOT handled — OS-level dismiss does not
 // modify server state. Only in-app dismiss (user taps X) calls PATCH /api/notifications/:id/dismiss.
@@ -15,12 +15,19 @@
 // the matching helpers in app/utils/pushCredentials.ts (same DB/store names).
 const CREDS_DB = 'collct-push-credentials'
 const CREDS_STORE = 'credentials'
+const META_STORE = 'meta'
+const DWP_FLAG_KEY = 'dwp-native-display'
 
 function idbOpen() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(CREDS_DB, 1)
+    const req = indexedDB.open(CREDS_DB, 2)
     req.onupgradeneeded = () => {
-      req.result.createObjectStore(CREDS_STORE, { keyPath: 'endpoint' })
+      if (!req.result.objectStoreNames.contains(CREDS_STORE)) {
+        req.result.createObjectStore(CREDS_STORE, { keyPath: 'endpoint' })
+      }
+      if (!req.result.objectStoreNames.contains(META_STORE)) {
+        req.result.createObjectStore(META_STORE, { keyPath: 'key' })
+      }
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
@@ -53,6 +60,31 @@ function deleteCredentials(endpoint) {
   }))
 }
 
+function getMeta(key) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction(META_STORE, 'readonly').objectStore(META_STORE).get(key)
+    req.onsuccess = () => resolve(req.result ? req.result.value : null)
+    req.onerror = () => reject(req.error)
+  }))
+}
+
+// True only with an explicit recorded capability — any doubt (no record,
+// read failure, old install) falls back to manual display. Skipping must
+// never swallow a notification silently.
+function dwpNativeDisplay() {
+  return getMeta(DWP_FLAG_KEY).then(value => value === true).catch(() => false)
+}
+
+function refreshUnreadBadge() {
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    for (const client of clientList) {
+      try {
+        client.postMessage({ type: 'COLLCT_UNREAD_REFRESH' })
+      } catch { /* client gone */ }
+    }
+  }).catch(() => {})
+}
+
 function navigateToPath(url) {
   const targetUrl = new URL(url, self.registration.scope).href;
   return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
@@ -80,8 +112,21 @@ function navigateToPath(url) {
         await appClient.focus();
       }
       // Ask the page to route itself (covers browsers without navigate()).
+      // Post repeatedly: on a cold start the page may boot after the first
+      // message, and a lost message means a dead tap. The app dedupes
+      // repeat navigations. Awaited so the SW stays alive for delivery.
       if (typeof appClient.postMessage === 'function') {
-        appClient.postMessage({ type: 'COLLCT_NAVIGATE', url });
+        const message = { type: 'COLLCT_NAVIGATE', url }
+        appClient.postMessage(message)
+        await new Promise((resolve) => {
+          setTimeout(() => {
+            try { appClient.postMessage(message) } catch { /* client gone */ }
+          }, 800)
+          setTimeout(() => {
+            try { appClient.postMessage(message) } catch { /* client gone */ }
+            resolve()
+          }, 2000)
+        })
       }
       return undefined;
     }
@@ -106,32 +151,17 @@ self.addEventListener('push', (event) => {
     return
   }
 
-  // Declarative Web Push (DWP) — Safari renders natively, never reaches here.
-  // But if Chrome/Firefox receive a DWP payload, handle it as a fallback.
-  if (raw.web_push === 8030 && raw.notification) {
-    const n = raw.notification
-    const notificationData = n.data || {}
+  const isDwp = raw.web_push === 8030 && raw.notification
 
+  // DWP-capable browser (capability recorded at subscribe time): the
+  // notification is already displayed natively — showing it again would
+  // duplicate it. Anything else is displayed manually below.
+  if (isDwp) {
     event.waitUntil(
-      self.registration.showNotification(n.title || 'Collct', {
-        body: n.body || '',
-        icon: n.icon || '/icon-192x192.png',
-        badge: '/icon-192x192.png',
-        tag: n.tag || undefined,
-        image: n.image || undefined,
-        silent: n.silent || undefined,
-        requireInteraction: n.requireInteraction || undefined,
-        renotify: n.renotify || undefined,
-        vibrate: n.vibrate || undefined,
-        timestamp: n.timestamp || undefined,
-        data: {
-          ...notificationData,
-          navigate: n.navigate || undefined,
-        },
-        ...(n.actions?.length ? { actions: n.actions.map(a => ({ action: a.action, title: a.title, icon: a.icon })) } : {}),
-      }).catch((err) => {
-        console.error('[push] Failed to show DWP notification:', err)
-      })
+      dwpNativeDisplay().then((native) => {
+        if (native) return refreshUnreadBadge()
+        return showDwpNotification(raw.notification)
+      }).catch(() => showDwpNotification(raw.notification))
     )
     return
   }
@@ -164,6 +194,30 @@ self.addEventListener('push', (event) => {
     })
   )
 })
+
+function showDwpNotification(n) {
+  const notificationData = n.data || {}
+
+  return self.registration.showNotification(n.title || 'Collct', {
+    body: n.body || '',
+    icon: n.icon || '/icon-192x192.png',
+    badge: '/icon-192x192.png',
+    tag: n.tag || undefined,
+    image: n.image || undefined,
+    silent: n.silent || undefined,
+    requireInteraction: n.requireInteraction || undefined,
+    renotify: n.renotify || undefined,
+    vibrate: n.vibrate || undefined,
+    timestamp: n.timestamp || undefined,
+    data: {
+      ...notificationData,
+      navigate: n.navigate || undefined,
+    },
+    ...(n.actions?.length ? { actions: n.actions.map(a => ({ action: a.action, title: a.title, icon: a.icon })) } : {}),
+  }).catch((err) => {
+    console.error('[push] Failed to show DWP notification:', err)
+  })
+}
 
 // --- Notification click ---
 

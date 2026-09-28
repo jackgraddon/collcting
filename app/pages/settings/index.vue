@@ -3,8 +3,8 @@ const router = useRouter()
 const toast = useToast()
 const api = useApi()
 const { activeAccount, removeAccount, accounts, updateAccount } = useAccounts()
-const { isPwa, permission, notificationStatus, requestPermission, unsubscribe, retry } = usePushNotifications()
-const { platform } = usePlatform()
+const { status: notifStatus, permission: notifPermission, busy: notifBusy, subscribe: subscribePush, unsubscribe: unsubscribePush, refresh: refreshPush } = usePushSubscription()
+const { isPwa, isIos } = usePlatform()
 const { mediaUrl } = useMediaUrl()
 
 const accountState = reactive({
@@ -39,8 +39,11 @@ try {
   // Offline — keep cached profile
 }
 
+const notificationsOn = computed(() => notifStatus.value === 'on')
+const canToggleNotifications = computed(() => notifStatus.value === 'on' || notifStatus.value === 'off')
+
 const statusConfig = computed(() => {
-  switch (notificationStatus.value) {
+  switch (notifStatus.value) {
     case 'unsupported':
       return {
         icon: 'i-lucide-bell-off',
@@ -48,106 +51,64 @@ const statusConfig = computed(() => {
         label: 'Not supported',
         description: isPwa.value
           ? 'Your browser doesn\'t support push notifications.'
-          : 'Install this app to your home screen to enable notifications.',
-        showEnable: false,
-        showDisable: false,
-        showRetry: false
+          : 'Install this app to your home screen to enable notifications.'
       }
-    case 'disabled':
+    case 'denied':
       return {
         icon: 'i-lucide-bell-off',
         iconClass: 'text-muted',
         label: 'Notifications blocked',
-        description: 'Enable notifications in your browser settings.',
-        showEnable: false,
-        showDisable: false,
-        showRetry: false
+        description: 'Enable notifications in your browser settings to turn them on here.'
       }
-    case 'pending':
-      return {
-        icon: 'i-lucide-bell-ring',
-        iconClass: 'text-primary animate-pulse',
-        label: 'Requesting permission...',
-        description: 'Waiting for your response.',
-        showEnable: false,
-        showDisable: false,
-        showRetry: false
-      }
-    case 'active':
+    case 'on':
       return {
         icon: 'i-lucide-bell-ring',
         iconClass: 'text-success',
         label: 'Notifications enabled',
-        description: 'You\'ll receive push notifications for new likes, comments, group joins, and moments.',
-        showEnable: false,
-        showDisable: true,
-        showRetry: false
-      }
-    case 'stale':
-      return {
-        icon: 'i-lucide-refresh-cw',
-        iconClass: 'text-primary animate-spin',
-        label: 'Re-enabling notifications...',
-        description: 'Your subscription expired. Re-enabling automatically.',
-        showEnable: false,
-        showDisable: false,
-        showRetry: false
+        description: 'You\'ll receive push notifications for new likes, comments, group joins, and moments.'
       }
     case 'error':
       return {
         icon: 'i-lucide-triangle-alert',
         iconClass: 'text-error',
         label: 'Notifications failed',
-        description: 'Could not set up push notifications.',
-        showEnable: false,
-        showDisable: false,
-        showRetry: true
+        description: 'Could not set up push notifications.'
       }
     default:
       return {
         icon: 'i-lucide-bell',
         iconClass: 'text-muted',
-        label: 'Notifications not enabled',
-        description: 'Enable notifications to get alerted when friends interact with your photos.',
-        showEnable: true,
-        showDisable: false,
-        showRetry: false
+        label: 'Notifications off',
+        description: 'Enable notifications to get alerted when friends interact with your photos.'
       }
   }
 })
 
 const showIosNote = computed(() => {
-  if (!import.meta.client) return false
-  if (platform.value === 'apns') return notificationStatus.value === 'active'
-  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  return isIos && isPwa.value && notificationStatus.value === 'active'
+  return isIos.value && isPwa.value && notifStatus.value === 'on'
 })
 
-const showAndroidNote = computed(() => {
-  return platform.value === 'fcm' && notificationStatus.value === 'active'
-})
-
-async function enableNotifications() {
-  const granted = await requestPermission()
-  if (granted) {
-    toast.add({ title: 'Notifications enabled', color: 'success' })
-  } else if (permission.value === 'denied') {
-    toast.add({ title: 'Permission denied', description: 'You can enable notifications in your browser settings.', color: 'warning' })
+async function onToggleNotifications(on: boolean) {
+  if (on) {
+    const ok = await subscribePush()
+    if (ok) {
+      toast.add({ title: 'Notifications enabled', color: 'success' })
+    } else if (notifPermission.value === 'denied') {
+      toast.add({ title: 'Permission denied', description: 'You can enable notifications in your browser settings.', color: 'warning' })
+    } else {
+      toast.add({ title: 'Connection failed', description: 'Could not reach the server to set up notifications. Check your connection and try again.', color: 'error' })
+    }
   } else {
-    toast.add({ title: 'Connection failed', description: 'Could not reach the server to set up notifications. Check your connection and try again.', color: 'error' })
+    await unsubscribePush()
+    toast.add({ title: 'Notifications disabled', color: 'success' })
   }
-}
-
-async function disableNotifications() {
-  await unsubscribe()
-  toast.add({ title: 'Notifications disabled', color: 'success' })
 }
 
 async function retryNotifications() {
   retrying.value = true
   try {
-    const ok = await retry()
-    if (ok) {
+    await refreshPush()
+    if (notifStatus.value === 'on') {
       toast.add({ title: 'Notifications re-enabled', color: 'success' })
     } else {
       toast.add({ title: 'Retry failed', description: 'Could not set up notifications. Check your connection and try again.', color: 'error' })
@@ -347,32 +308,15 @@ const tabs = computed(() => [
               >
                 Note: Notifications may be delayed while the app is backgrounded (iOS limitation).
               </p>
-              <p
-                v-if="showAndroidNote"
-                class="text-xs text-muted mt-1 italic"
-              >
-                Note: Notifications should arrive promptly on Android.
-              </p>
             </div>
+            <USwitch
+              v-if="canToggleNotifications"
+              :model-value="notificationsOn"
+              :loading="notifBusy"
+              @update:model-value="onToggleNotifications"
+            />
             <UButton
-              v-if="statusConfig.showEnable"
-              color="primary"
-              size="xs"
-              @click="enableNotifications"
-            >
-              Enable
-            </UButton>
-            <UButton
-              v-else-if="statusConfig.showDisable"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              @click="disableNotifications"
-            >
-              Disable
-            </UButton>
-            <UButton
-              v-else-if="statusConfig.showRetry"
+              v-else-if="notifStatus === 'error'"
               color="primary"
               variant="outline"
               size="xs"

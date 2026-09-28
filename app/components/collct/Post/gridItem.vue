@@ -37,7 +37,7 @@
 
     <div
       v-if="isMoment"
-      class="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center"
+      class="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-success/90 flex items-center justify-center"
     >
       <UIcon
         name="i-lucide-aperture"
@@ -72,8 +72,8 @@ const themeBorders: Record<string, string> = {
 }
 
 const momentBorders: Record<string, string> = {
-  light: 'border-sunflower-gold-400',
-  dark: 'border-sunflower-gold-600'
+  light: 'border-jungle-teal-400',
+  dark: 'border-jungle-teal-600'
 }
 
 const activeBorder = computed(() => {

@@ -329,6 +329,7 @@ watchEffect(() => {
             <USwitch
               :model-value="group.momentsEnabled ?? true"
               :loading="savingMoments"
+              color="success"
               @update:model-value="toggleMomentsEnabled"
             />
           </label>

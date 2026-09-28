@@ -157,6 +157,7 @@ async function handleTokenAuth() {
 }
 
 const hasExistingAccounts = computed(() => accounts.value.length > 0)
+const { variant: installVariant, visible: installVisible, isSafariDesktop, promptInstall, dismiss: dismissInstall } = useAppInstall()
 
 onMounted(() => {
   // Handle web redirect callback
@@ -354,5 +355,74 @@ onUnmounted(() => {
         />
       </div>
     </UCard>
+
+    <div
+      v-if="installVisible && !polling"
+      class="w-full max-w-md mx-auto mt-4"
+    >
+      <div class="flex items-start gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5">
+        <NuxtImg
+          src="/app-icon-clear.png"
+          alt="Collct"
+          width="40"
+          height="40"
+          class="rounded-xl shrink-0"
+        />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold">
+            Install Collcting
+          </p>
+
+          <template v-if="installVariant === 'prompt'">
+            <p class="text-xs text-muted mt-0.5">
+              Fullscreen, faster loads, and notifications — right from your home screen.
+            </p>
+            <UButton
+              color="primary"
+              size="xs"
+              class="mt-2"
+              icon="i-lucide-download"
+              @click="promptInstall"
+            >
+              Install app
+            </UButton>
+          </template>
+
+          <template v-else-if="installVariant === 'ios'">
+            <p class="text-xs text-muted mt-0.5">
+              Add to your Home Screen for fullscreen and faster loads.
+            </p>
+            <p class="text-xs text-muted mt-1">
+              Push notifications require the installed app on iPhone.
+            </p>
+            <p class="text-xs text-muted mt-2 flex items-center gap-1.5">
+              <UIcon
+                name="i-lucide-share"
+                class="w-3.5 h-3.5 shrink-0"
+              />
+              <span>Tap Share, then <span class="font-medium text-default">Add to Home Screen</span></span>
+            </p>
+          </template>
+
+          <template v-else>
+            <p class="text-xs text-muted mt-0.5">
+              Install it for fullscreen and faster loads.
+            </p>
+            <p class="text-xs text-muted mt-1">
+              {{ isSafariDesktop ? 'In Safari: File → Add to Dock.' : 'Open your browser menu and choose Install app.' }}
+            </p>
+          </template>
+        </div>
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          aria-label="Dismiss install suggestion"
+          class="shrink-0 -mt-1 -mr-1"
+          @click="dismissInstall"
+        />
+      </div>
+    </div>
   </div>
 </template>

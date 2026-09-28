@@ -309,14 +309,14 @@ onMounted(async () => {
 
         <div
           v-if="post.isMoment"
-          class="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20"
+          class="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/5 border border-success/20"
         >
           <UIcon
             name="i-lucide-aperture"
-            class="w-4 h-4 text-primary shrink-0"
+            class="w-4 h-4 text-success shrink-0"
           />
           <div class="min-w-0">
-            <p class="text-xs font-medium text-primary">
+            <p class="text-xs font-medium text-success">
               Moment
             </p>
             <p

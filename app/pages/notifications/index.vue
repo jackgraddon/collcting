@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 const router = useRouter()
 const api = useApi()
-const { shouldPrompt, isPwa, requestPermission, dismissPrompt } = usePushNotifications()
+const { shouldPrompt, subscribe, dismissPrompt } = usePushSubscription()
+const { isPwa, isIos } = usePlatform()
 const { mediaUrl } = useMediaUrl()
 const { refresh: refreshUnreadCount } = useUnreadCount()
 
@@ -9,12 +10,11 @@ const showPrompt = computed(() => shouldPrompt.value)
 
 const showInstallNote = computed(() => {
   if (!import.meta.client) return false
-  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  return isIos && !isPwa.value
+  return isIos.value && !isPwa.value
 })
 
 async function enableNotifications() {
-  await requestPermission()
+  await subscribe()
 }
 
 const notifications = ref<Notification[]>([])

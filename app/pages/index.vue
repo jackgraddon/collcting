@@ -86,15 +86,15 @@ useIntersectionObserver(
     >
       <button
         v-if="showMomentBanner"
-        class="w-full mb-4 p-4 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 text-center transition-colors hover:bg-primary/10"
+        class="w-full mb-4 p-4 rounded-xl border-2 border-dashed border-success/40 bg-success/5 text-center transition-colors hover:bg-success/10"
         @click="openMomentModal"
       >
         <div class="flex items-center justify-center gap-2 mb-1">
           <UIcon
             name="i-lucide-aperture"
-            class="w-5 h-5 text-primary"
+            class="w-5 h-5 text-success"
           />
-          <span class="font-semibold text-primary">Moment is active!</span>
+          <span class="font-semibold text-success">Moment is active!</span>
         </div>
         <p class="text-sm text-muted">
           Tap to capture your moment
