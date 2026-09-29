@@ -6,7 +6,7 @@ export function useAppInstall() {
   const { $pwa } = useNuxtApp()
   const { isNative, isPwa, isIos } = usePlatform()
 
-  const dismissed = ref(import.meta.client && localStorage.getItem(DISMISS_KEY) === 'true')
+  const dismissed = ref(import.meta.client && storageGet(DISMISS_KEY) === 'true')
 
   // Chromium fires beforeinstallprompt when the app is installable; the PWA
   // module surfaces it as $pwa.showInstallPrompt.
@@ -40,9 +40,7 @@ export function useAppInstall() {
 
   function dismiss(): void {
     dismissed.value = true
-    if (import.meta.client) {
-      localStorage.setItem(DISMISS_KEY, 'true')
-    }
+    storageSet(DISMISS_KEY, 'true')
     // Also silence the module's own prompt machinery.
     $pwa?.cancelInstall()
   }

@@ -2,9 +2,10 @@
 const router = useRouter()
 const toast = useToast()
 const api = useApi()
-const { activeAccount, removeAccount, accounts, updateAccount } = useAccounts()
+const { activeAccount, removeAccount, accounts, updateAccount, testConnection, storageStatus, lastActiveAt, corruptBackupFound } = useAccounts()
 const { status: notifStatus, permission: notifPermission, busy: notifBusy, subscribe: subscribePush, unsubscribe: unsubscribePush, refresh: refreshPush } = usePushSubscription()
 const { isPwa, isIos } = usePlatform()
+const { public: { isBeta } } = useRuntimeConfig()
 const { mediaUrl } = useMediaUrl()
 
 const accountState = reactive({
@@ -209,6 +210,88 @@ function disconnectAccount() {
     router.push('/login')
   } else {
     router.push('/')
+  }
+}
+
+const diagnostics = reactive({
+  quota: null as null | { quota?: number, usage?: number },
+  sw: 'checking…',
+  tokenResults: {} as Record<string, boolean | null>,
+  checkingTokens: false
+})
+
+function formatBytes(n?: number): string {
+  if (n == null) return 'unknown'
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} GB`
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} TB`
+}
+
+function formatLastActive(ts: number | null): string {
+  if (!ts) return 'never'
+  return new Date(ts).toLocaleString()
+}
+
+const storageStatusText = computed(() => {
+  switch (storageStatus.value) {
+    case 'ok': return 'healthy'
+    case 'empty': return lastActiveAt.value ? 'empty (was active here before)' : 'empty (first run)'
+    case 'blocked': return 'blocked'
+    case 'corrupt': return 'recovered from damage'
+    default: return 'unknown'
+  }
+})
+
+onMounted(async () => {
+  if (!import.meta.client) return
+  try {
+    const est = await navigator.storage?.estimate()
+    diagnostics.quota = { quota: est?.quota, usage: est?.usage }
+  } catch {
+    diagnostics.quota = null
+  }
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration()
+    diagnostics.sw = !reg ? 'none' : reg.active ? 'active' : reg.waiting ? 'waiting' : reg.installing ? 'installing' : 'unknown'
+  } catch {
+    diagnostics.sw = 'unavailable'
+  }
+})
+
+async function checkAccountTokens() {
+  diagnostics.checkingTokens = true
+  try {
+    for (const a of accounts.value) {
+      try {
+        diagnostics.tokenResults[a.id] = !!(await testConnection(a.serverUrl, a.token))
+      } catch {
+        diagnostics.tokenResults[a.id] = false
+      }
+    }
+  } finally {
+    diagnostics.checkingTokens = false
+  }
+}
+
+async function copyDiagnostics() {
+  const lines = [
+    `Collcting diagnostics (${isBeta ? 'beta' : 'production'})`,
+    `Accounts: ${accounts.value.length}`,
+    `Storage: ${storageStatusText.value}`,
+    `Last active here: ${formatLastActive(lastActiveAt.value)}`,
+    `Damaged backup: ${corruptBackupFound.value ? 'yes' : 'no'}`,
+    `Quota: ${diagnostics.quota ? `${formatBytes(diagnostics.quota.usage)} of ${formatBytes(diagnostics.quota.quota)}` : 'unknown'}`,
+    `Service worker: ${diagnostics.sw}`,
+    `Installed app: ${isPwa.value ? 'yes' : 'no'}`,
+    `User agent: ${import.meta.client ? navigator.userAgent : 'n/a'}`,
+    ...accounts.value.map(a => `Account ${a.name} (${a.serverUrl}): token ${diagnostics.tokenResults[a.id] == null ? 'unchecked' : diagnostics.tokenResults[a.id] ? 'valid' : 'INVALID'}`)
+  ]
+  try {
+    if (!import.meta.client || !navigator.clipboard) throw new Error('no clipboard')
+    await navigator.clipboard.writeText(lines.join('\n'))
+    toast.add({ title: 'Diagnostics copied', description: 'Send it to whoever is helping you debug.', color: 'success' })
+  } catch {
+    toast.add({ title: 'Copy failed', description: 'Long-press the values to copy them manually.', color: 'error' })
   }
 }
 
@@ -430,6 +513,78 @@ const tabs = computed(() => [
               variant="ghost"
               block
               @click="disconnectAccount"
+            />
+          </div>
+        </div>
+
+        <div class="my-4 space-y-2">
+          <div class="space-y-1">
+            <p class="text-sm font-medium">
+              Diagnostics
+            </p>
+            <p class="text-xs text-muted">
+              Having login trouble? Copy this and send it to whoever is helping you.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted">Accounts</span>
+              <span>{{ accounts.length }}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted">Storage</span>
+              <span>{{ storageStatusText }}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted">Last active here</span>
+              <span>{{ formatLastActive(lastActiveAt) }}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted">Quota</span>
+              <span>{{ diagnostics.quota ? `${formatBytes(diagnostics.quota.usage)} of ${formatBytes(diagnostics.quota.quota)}` : 'unknown' }}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted">Service worker</span>
+              <span>{{ diagnostics.sw }}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted">Installed app</span>
+              <span>{{ isPwa ? 'yes' : 'no' }}</span>
+            </div>
+            <div
+              v-for="a in accounts"
+              :key="a.id"
+              class="flex items-center justify-between text-sm gap-2"
+            >
+              <span class="text-muted truncate">
+                Token · {{ a.name }}
+              </span>
+              <span
+                class="shrink-0"
+                :class="diagnostics.tokenResults[a.id] == null ? 'text-muted' : diagnostics.tokenResults[a.id] ? 'text-success' : 'text-error'"
+              >
+                {{ diagnostics.tokenResults[a.id] == null ? 'unchecked' : diagnostics.tokenResults[a.id] ? 'valid' : 'invalid' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <UButton
+              label="Check tokens"
+              icon="i-lucide-refresh-cw"
+              variant="outline"
+              block
+              :loading="diagnostics.checkingTokens"
+              :disabled="accounts.length === 0"
+              @click="checkAccountTokens"
+            />
+            <UButton
+              label="Copy diagnostics"
+              icon="i-lucide-clipboard-copy"
+              variant="outline"
+              block
+              @click="copyDiagnostics"
             />
           </div>
         </div>

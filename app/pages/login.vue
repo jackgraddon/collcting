@@ -4,7 +4,8 @@ definePageMeta({
 })
 
 const router = useRouter()
-const { addAccount, testConnection, accounts, requestAuthorization, exchangeToken } = useAccounts()
+const toast = useToast()
+const { addAccount, testConnection, accounts, requestAuthorization, exchangeToken, storageStatus, lastActiveAt } = useAccounts()
 const { isNative } = usePlatform()
 
 const serverUrl = ref('')
@@ -35,7 +36,7 @@ async function handleBrowserAuth() {
     const { authorize_url, code } = await requestAuthorization(url, 'Collct', redirectUri)
 
     if (isNative.value) {
-      sessionStorage.setItem('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
+      sessionSet('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
 
       // Listen for the deep link callback
       const { App } = await import('@capacitor/app')
@@ -52,7 +53,7 @@ async function handleBrowserAuth() {
       const { Browser } = await import('@capacitor/browser')
       await Browser.open({ url: authorize_url })
     } else {
-      sessionStorage.setItem('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
+      sessionSet('collct_pending_auth', JSON.stringify({ serverUrl: url, code }))
       window.location.href = authorize_url
     }
   } catch (e: unknown) {
@@ -101,7 +102,10 @@ async function pollForToken(url: string, code: string) {
         addedAt: Date.now()
       }
 
-      addAccount(account)
+      const saved = addAccount(account)
+      if (!saved) {
+        toast.add({ title: 'Signed in, but this device couldn\'t save the session', description: 'You\'ll be logged out when you leave. Check Private Browsing, content blockers, or free storage.', color: 'warning' })
+      }
       router.push('/')
     } catch {
       // Still pending, continue polling
@@ -147,7 +151,10 @@ async function handleTokenAuth() {
       addedAt: Date.now()
     }
 
-    addAccount(account)
+    const saved = addAccount(account)
+    if (!saved) {
+      toast.add({ title: 'Signed in, but this device couldn\'t save the session', description: 'You\'ll be logged out when you leave. Check Private Browsing, content blockers, or free storage.', color: 'warning' })
+    }
     router.push('/')
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Something went wrong'
@@ -157,6 +164,33 @@ async function handleTokenAuth() {
 }
 
 const hasExistingAccounts = computed(() => accounts.value.length > 0)
+
+// Storage failure banners: an empty account list with a prior heartbeat
+// means this device previously held accounts that are now gone.
+const storageBanner = computed(() => {
+  if (storageStatus.value === 'blocked') {
+    return {
+      color: 'error' as const,
+      title: 'Device storage is blocked',
+      description: 'We can\'t save your login on this device. Check Private Browsing, content blockers, Block All Cookies (Settings → Apps → Safari → Advanced), or free storage.'
+    }
+  }
+  if (storageStatus.value === 'corrupt') {
+    return {
+      color: 'warning' as const,
+      title: 'Saved data was damaged',
+      description: 'We set the damaged data aside (nothing on your server was touched). Please log in again.'
+    }
+  }
+  if (storageStatus.value === 'empty' && lastActiveAt.value) {
+    return {
+      color: 'warning' as const,
+      title: 'No saved accounts found',
+      description: 'This device previously held an account that is now gone — the OS or browser may have cleared site storage. Logging in again will restore access.'
+    }
+  }
+  return null
+})
 const { variant: installVariant, visible: installVisible, isSafariDesktop, promptInstall, dismiss: dismissInstall } = useAppInstall()
 
 onMounted(() => {
@@ -174,9 +208,9 @@ onMounted(() => {
   }
 
   // Handle pending auth from session storage
-  const pending = sessionStorage.getItem('collct_pending_auth')
+  const pending = sessionGet('collct_pending_auth')
   if (pending) {
-    sessionStorage.removeItem('collct_pending_auth')
+    sessionRemove('collct_pending_auth')
     const { serverUrl: url, code } = JSON.parse(pending)
     serverUrl.value = url
     polling.value = true
@@ -201,6 +235,15 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-dvh flex flex-col pt-[var(--safe-area-top,env(safe-area-inset-top))] pb-[var(--safe-area-bottom,env(safe-area-inset-bottom))]">
+    <UAlert
+      v-if="storageBanner"
+      :title="storageBanner.title"
+      :description="storageBanner.description"
+      :color="storageBanner.color"
+      variant="subtle"
+      icon="solar:danger-triangle-bold"
+      class="w-full max-w-md mx-auto mt-8"
+    />
     <UCard class="w-full max-w-md mx-auto mt-8">
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-primary">

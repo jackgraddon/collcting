@@ -47,7 +47,7 @@ export function usePushSubscription() {
     if (permission.value !== 'default') return false
     if (hasLocalSubscription.value || dismissed.value) return false
     if (import.meta.client) {
-      const stored = localStorage.getItem(DISMISS_KEY)
+      const stored = storageGet(DISMISS_KEY)
       if (stored) {
         const daysSince = (Date.now() - Number(stored)) / (1000 * 60 * 60 * 24)
         if (daysSince < DISMISS_DAYS) return false
@@ -67,9 +67,9 @@ export function usePushSubscription() {
     const key = getSubscriptionKey()
     if (!key) return
     if (value) {
-      localStorage.setItem(key, 'true')
+      storageSet(key, 'true')
     } else {
-      localStorage.removeItem(key)
+      storageRemove(key)
     }
   }
 
@@ -81,25 +81,23 @@ export function usePushSubscription() {
     if (!import.meta.client) return null
     const key = getSubscriptionKey()
     if (!key) return null
-    return localStorage.getItem(`${key}-vapid`)
+    return storageGet(`${key}-vapid`)
   }
 
   function setStoredVapidKey(value: string) {
     if (!import.meta.client) return
     const key = getSubscriptionKey()
     if (!key) return
-    try {
-      localStorage.setItem(`${key}-vapid`, value)
-    } catch {
-      // Storage unavailable — rotation check degrades gracefully
-    }
+    // A false return (storage unavailable) just means the rotation check
+    // degrades gracefully until storage works again.
+    storageSet(`${key}-vapid`, value)
   }
 
   function clearStoredVapidKey() {
     if (!import.meta.client) return
     const key = getSubscriptionKey()
     if (!key) return
-    localStorage.removeItem(`${key}-vapid`)
+    storageRemove(`${key}-vapid`)
   }
 
   function storeCredentials(endpoint: string) {
@@ -262,7 +260,7 @@ export function usePushSubscription() {
 
   function dismissPrompt() {
     dismissed.value = true
-    localStorage.setItem(DISMISS_KEY, String(Date.now()))
+    storageSet(DISMISS_KEY, String(Date.now()))
   }
 
   init()
