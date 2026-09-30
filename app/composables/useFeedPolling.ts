@@ -49,12 +49,27 @@ export function useFeedPolling() {
     }
   }
 
+  // Newest known photo timestamp — the incremental poll cursor. The server
+  // answers `after` with strictly-greater matches, and mergeFeed dedupes by
+  // id, so boundary overlap is harmless either way.
+  function latestTimestamp(): number | undefined {
+    let max: number | undefined
+    for (const p of photos.value) {
+      const t = new Date(p.createdAt).getTime()
+      if (!Number.isNaN(t) && (max === undefined || t > max)) max = t
+    }
+    return max
+  }
+
   async function poll() {
-    const result = await fetchFeed({ limit: 20 })
-    if (!result) return
+    // Incremental: only photos newer than what we hold. Steady state is an
+    // empty array (~40 bytes) instead of 20 full photo objects. nextCursor is
+    // deliberately untouched — it drives backward pagination only.
+    const after = latestTimestamp()
+    const result = await fetchFeed(after === undefined ? { limit: 20 } : { limit: 50, after })
+    if (!result || result.photos.length === 0) return
 
     photos.value = mergeFeed(result.photos, photos.value)
-    nextCursor.value = result.nextCursor
   }
 
   async function loadMore() {

@@ -182,9 +182,35 @@ async function react(comment: CommentItem, type: ReactionType) {
   }
 }
 
-onMounted(async () => {
-  await fetchComments()
+function refreshComments() {
+  fetchComments().catch(() => {
+    // Offline — keep stale list
+  })
+}
+
+onMounted(refreshComments)
+
+// The post page is keepalive-cached: revisiting it revives without
+// remounting, so refresh on activation too (first activation follows the
+// initial mount and is skipped to avoid a double fetch).
+let firstActivation = true
+onActivated(() => {
+  if (firstActivation) {
+    firstActivation = false
+    return
+  }
+  refreshComments()
 })
+
+watch(() => props.photoId, () => refreshComments())
+
+if (import.meta.client) {
+  const onVisibilityChange = () => {
+    if (!document.hidden) refreshComments()
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  onUnmounted(() => document.removeEventListener('visibilitychange', onVisibilityChange))
+}
 
 function formatRelative(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()

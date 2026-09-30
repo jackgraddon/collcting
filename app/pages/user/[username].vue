@@ -5,9 +5,11 @@ const { mediaUrl } = useMediaUrl()
 
 const username = computed(() => route.params.username as string)
 
-const { data: profile, status: profileStatus } = await useAsyncData(`profile-${username.value}`, () => api.getUserProfile(username.value))
+const { data: profile, status: profileStatus, refresh: refreshProfile } = await useAsyncData(`profile-${username.value}`, () => api.getUserProfile(username.value))
 
-const { data: photosData, status: photosStatus } = await useAsyncData(`user-photos-${username.value}`, () => api.getUserPhotos(username.value, { limit: 20 }))
+const { data: photosData, status: photosStatus, refresh: refreshPhotos } = await useAsyncData(`user-photos-${username.value}`, () => api.getUserPhotos(username.value, { limit: 20 }))
+
+useViewRefresh(`user-${username.value}`, () => Promise.all([refreshProfile(), refreshPhotos()]))
 
 const loadingMore = ref(false)
 const photos = computed(() => photosData.value?.photos ?? [])

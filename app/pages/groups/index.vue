@@ -4,6 +4,8 @@ const api = useApi()
 
 const { data, refresh } = await useAsyncData('groups', () => api.getGroups())
 
+useViewRefresh('groups', () => refresh())
+
 const showCreateModal = ref(false)
 const newName = ref('')
 const newIcon = ref('')

@@ -10,7 +10,12 @@ const { mediaUrl } = useMediaUrl()
 
 const groupId = Number(route.params.id)
 
-const { data: group, status } = await useAsyncData(`group-${groupId}`, () => api.getGroup(groupId))
+const { data: group, status, refresh: refreshGroup } = await useAsyncData(`group-${groupId}`, () => api.getGroup(groupId))
+
+useViewRefresh(`group-${groupId}`, async () => {
+  await refreshGroup()
+  if (isAdmin.value) await loadInvites()
+})
 
 const currentUserId = computed(() => activeAccount.value?.user?.id)
 const isOwner = computed(() => group.value?.ownerId === currentUserId.value)

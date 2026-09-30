@@ -45,6 +45,12 @@ PWA via `@vite-pwa/nuxt` (Workbox). Mobile via Capacitor (`@capacitor/*`).
   behind it; keep `black-translucent` anyway so a future iOS that restores overlay behavior
   lights up automatically. Installed-PWA metadata (status-bar style, manifest) is frozen at
   install time — testers must delete/re-add the Home Screen icon to pick up changes.
+- **Feed polling is incremental**: poll with the `after` cursor (server matches strictly
+  greater), merge by id, never touch the backward `nextCursor`. Steady state is an empty
+  array, not 20 full objects. Same idea for notifications: poll the tiny unread-count and
+  only refetch the list when it changes. Full refetches are for explicit refresh, view
+  changes (`useViewRefresh`, 15s cooldown), and healing drift — the server sends no ETags,
+  so this app-level precision is how bandwidth stays low.
 - **Capacitor**: dynamic `import()` only — static `@capacitor/*` imports break web builds.
 - **Workbox**: routes are first-match-wins — order specific before generic. `navigateFallback`
   stays `''`: with `ssr: false` the build emits no static HTML, so any fallback URL makes

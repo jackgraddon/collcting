@@ -2,8 +2,11 @@
 const router = useRouter()
 const api = useApi()
 const { shouldPrompt, subscribe, dismissPrompt } = usePushSubscription()
-const { isPwa, isIos } = usePlatform()
 const { mediaUrl } = useMediaUrl()
+const { isPwa, isIos } = usePlatform()
+const { setCount: setSharedUnreadCount } = useUnreadCount()
+
+const NOTIF_POLL_MS = 30_000
 const { refresh: refreshUnreadCount } = useUnreadCount()
 
 const showPrompt = computed(() => shouldPrompt.value)
@@ -30,10 +33,34 @@ async function fetchNotifications(cursor?: number) {
   return await api.getNotifications(params)
 }
 
-try {
+async function loadFirstPage() {
   const result = await fetchNotifications()
   notifications.value = result.notifications
   nextCursor.value = result.nextCursor
+}
+
+useViewRefresh('notifications', loadFirstPage)
+
+if (import.meta.client) {
+  // Counter-gated polling: the unread count is a ~20-byte check; the full
+  // list only refetches when the count actually changed.
+  const pollTimer = setInterval(async () => {
+    if (document.hidden) return
+    try {
+      const { count } = await api.getUnreadCount()
+      if (count !== unreadCount.value) {
+        setSharedUnreadCount(count)
+        await loadFirstPage()
+      }
+    } catch {
+      // Offline — keep stale list
+    }
+  }, NOTIF_POLL_MS)
+  onUnmounted(() => clearInterval(pollTimer))
+}
+
+try {
+  await loadFirstPage()
 } finally {
   loading.value = false
 }

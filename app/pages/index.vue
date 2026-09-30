@@ -3,6 +3,8 @@ import { useIntersectionObserver } from '@vueuse/core'
 
 const { canCapture, activeSupported, isActive, activeAccountDrafts, retryAllDrafts } = useMoments()
 const { openMomentModal } = useMomentCaptureModal()
+const { activeAccount } = useAccounts()
+const { on: onUpload } = useUploadBus()
 
 const {
   photos,
@@ -13,6 +15,21 @@ const {
   refresh,
   startPolling
 } = useFeedPolling()
+
+// Show your own post immediately — the next poll/refresh merges the full
+// server object (mergeFeed dedupes by id, so no duplicates).
+onUpload((post) => {
+  const me = activeAccount.value?.user
+  if (!me) return
+  const normalized: PostData = {
+    ...post,
+    user: { id: me.id, name: me.name, username: me.username, avatarUrl: me.avatarUrl },
+    groups: []
+  }
+  if (!photos.value.some(p => p.id === normalized.id)) {
+    photos.value.unshift(normalized)
+  }
+})
 
 const loadMoreTrigger = ref(null)
 

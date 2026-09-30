@@ -193,6 +193,38 @@ async function saveCaption() {
 onMounted(async () => {
   await fetchLikes()
 })
+
+// Same keepalive staleness as comments: refresh post data and likes when a
+// cached page is revived or the app returns to the foreground.
+async function refreshPostData() {
+  try {
+    freshPost.value = await api.getPhoto(id)
+  } catch {
+    // Offline — keep preloaded post
+  }
+  try {
+    await fetchLikes()
+  } catch {
+    // Offline — keep current counts
+  }
+}
+
+let firstActivation = true
+onActivated(() => {
+  if (firstActivation) {
+    firstActivation = false
+    return
+  }
+  refreshPostData()
+})
+
+if (import.meta.client) {
+  const onVisibilityChange = () => {
+    if (!document.hidden) refreshPostData()
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  onUnmounted(() => document.removeEventListener('visibilitychange', onVisibilityChange))
+}
 </script>
 
 <template>
