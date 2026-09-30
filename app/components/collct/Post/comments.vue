@@ -106,6 +106,14 @@ async function saveComment(commentId: number) {
 
 const openReactionPicker = ref<number | null>(null)
 const reactingOn = ref<number | null>(null)
+const deleteCommentId = ref<number | null>(null)
+const deletingComment = ref(false)
+const deleteCommentModalOpen = computed({
+  get: () => deleteCommentId.value !== null,
+  set: (v: boolean) => {
+    if (!v) deleteCommentId.value = null
+  }
+})
 
 function toggleReactionPicker(commentId: number) {
   openReactionPicker.value = openReactionPicker.value === commentId ? null : commentId
@@ -113,6 +121,27 @@ function toggleReactionPicker(commentId: number) {
 
 function closeReactionPicker() {
   openReactionPicker.value = null
+}
+
+async function confirmDeleteComment() {
+  if (deleteCommentId.value == null) return
+  const id = deleteCommentId.value
+  const idx = commentList.value.findIndex(c => c.id === id)
+  const removed = idx !== -1 ? commentList.value[idx]! : null
+  deletingComment.value = true
+  if (idx !== -1) commentList.value.splice(idx, 1)
+  deleteCommentId.value = null
+  try {
+    await api.deleteComment(id)
+  } catch {
+    if (removed) {
+      const at = Math.min(idx, commentList.value.length)
+      commentList.value.splice(at, 0, removed)
+    }
+    toast.add({ title: 'Could not delete comment', color: 'error', icon: 'solar:danger-triangle-bold' })
+  } finally {
+    deletingComment.value = false
+  }
 }
 
 async function react(comment: CommentItem, type: ReactionType) {
@@ -286,6 +315,13 @@ function totalReactions(counts: ReactionCounts) {
               @click="startEditComment(comment)"
             >
               Edit
+            </button>
+            <button
+              v-if="sessionUserId === comment.user.id"
+              class="text-xs text-muted hover:text-error transition-colors mt-0.5 ml-2"
+              @click="() => { deleteCommentId = comment.id }"
+            >
+              Delete
             </button>
           </template>
 
@@ -466,6 +502,46 @@ function totalReactions(counts: ReactionCounts) {
               @click="() => { commentHistoryOpen = false }"
             >
               Close
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </template>
+  </UModal>
+
+  <UModal v-model:open="deleteCommentModalOpen">
+    <template #content>
+      <UCard>
+        <template #header>
+          <div class="flex items-center gap-2">
+            <UIcon
+              name="solar:trash-bin-minimalistic-linear"
+              class="text-error w-5 h-5"
+            />
+            <span class="font-semibold">Delete comment?</span>
+          </div>
+        </template>
+
+        <p class="text-muted text-sm">
+          This will permanently delete your comment and cannot be undone.
+        </p>
+
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              @click="() => { deleteCommentId = null }"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              variant="solid"
+              :loading="deletingComment"
+              @click="confirmDeleteComment"
+            >
+              Delete
             </UButton>
           </div>
         </template>

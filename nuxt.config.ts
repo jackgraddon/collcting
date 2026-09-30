@@ -195,7 +195,10 @@ export default defineNuxtConfig({
           // Heavy photo reads render instantly from cache and revalidate in
           // the background — repeat visits feel fast even on slow networks.
           // Mutations are never GETs, so no stale-write risk.
-          urlPattern: /^https?:\/\/.*\/api\/(photos([/?]|$)|users\/[^/]+\/photos)/,
+          // List endpoints only: scoping wider would also catch
+          // /photos/:id, /photos/:id/likes and /photos/:id/comments, serving
+          // them stale with no re-render trigger on revalidation.
+          urlPattern: /^https?:\/\/.*\/api\/(photos($|\?.*)|users\/[^/]+\/photos)/,
           handler: 'StaleWhileRevalidate',
           options: {
             cacheName: 'collct-feed',

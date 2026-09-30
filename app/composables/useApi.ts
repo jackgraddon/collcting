@@ -112,6 +112,10 @@ export function useApi() {
       return $api<CommentItem>(`/api/comments/${commentId}`, { method: 'patch', body: { body } })
     },
 
+    async deleteComment(commentId: number) {
+      return $api<{ ok: boolean }>(`/api/comments/${commentId}`, { method: 'delete' })
+    },
+
     async toggleReaction(commentId: number, type: ReactionType) {
       return $api<{ counts: ReactionCounts, myReaction: ReactionType | null }>(`/api/comments/${commentId}/reactions`, { method: 'post', body: { type } })
     },
