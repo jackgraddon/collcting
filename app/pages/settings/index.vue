@@ -10,6 +10,7 @@ const { mediaUrl } = useMediaUrl()
 
 const accountState = reactive({
   name: activeAccount.value?.user?.name ?? '',
+  username: activeAccount.value?.user?.username ?? '',
   email: ''
 })
 
@@ -28,13 +29,15 @@ try {
   // ignore
 }
 
-// Self-heal stale cached profile (e.g. avatar uploaded elsewhere or lost
-// before we persisted it) — the server is source of truth.
+// Self-heal stale cached avatar (e.g. uploaded elsewhere or lost before we
+// persisted it) — the server is source of truth for it. Deliberately NOT
+// name/username: those are form-owned, and overwriting them here races with
+// an in-flight save, resurrecting stale values after a successful update.
 try {
   const me = await api.getMe()
-  if (activeAccount.value) {
+  if (activeAccount.value?.user) {
     updateAccount(activeAccount.value.id, {
-      user: { id: me.id, name: me.name, username: me.username, avatarUrl: me.avatarUrl }
+      user: { ...activeAccount.value.user, avatarUrl: me.avatarUrl }
     })
   }
 } catch {
@@ -178,21 +181,31 @@ async function onAvatarChange(e: Event) {
 }
 
 async function onSaveAccount() {
+  if (saving.value) return
   saving.value = true
   try {
     // Partial update — omit empty fields so server validation doesn't reject them.
-    const body: { name?: string, email?: string } = {}
+    const body: { name?: string, email?: string, username?: string } = {}
     if (accountState.name.trim()) body.name = accountState.name.trim()
     if (accountState.email.trim()) body.email = accountState.email.trim()
+    if (accountState.username.trim()) body.username = accountState.username.trim()
     if (Object.keys(body).length === 0) {
       toast.add({ title: 'Nothing to save', description: 'No changes to update.', color: 'warning' })
       return
     }
     await api.updateUser(body)
-    if (activeAccount.value?.user && body.name) {
-      updateAccount(activeAccount.value.id, {
-        user: { ...activeAccount.value.user, name: body.name }
+    if (activeAccount.value?.user) {
+      const persisted = updateAccount(activeAccount.value.id, {
+        user: {
+          ...activeAccount.value.user,
+          ...(body.name ? { name: body.name } : {}),
+          ...(body.username ? { username: body.username } : {})
+        }
       })
+      if (!persisted) {
+        toast.add({ title: 'Saved on the server, but this device couldn\'t store it', description: 'The change may revert here on reload. Check free storage.', color: 'warning' })
+        return
+      }
     }
     toast.add({ title: 'Saved', description: 'Your account has been updated.', color: 'success' })
   } catch (e: unknown) {
@@ -375,6 +388,22 @@ const tabs = computed(() => [
                 v-model="accountState.name"
                 class="w-full"
               />
+            </UFormField>
+            <UFormField
+              label="Username"
+              name="username"
+              hint="Letters, numbers, dots, underscores, hyphens"
+            >
+              <UInput
+                v-model="accountState.username"
+                placeholder="e.g. jack"
+                :maxlength="30"
+                class="w-full"
+              >
+                <template #leading>
+                  <span class="text-muted text-sm">@</span>
+                </template>
+              </UInput>
             </UFormField>
           </UForm>
 
