@@ -85,13 +85,19 @@ declare global {
     createdAt: Date | string
   }
 
+  type NotificationType = 'like' | 'comment' | 'group_join' | 'new_post' | 'moment'
+  // Wire shape for user notification preferences (PATCH /user/notification-prefs
+  // and the notificationPrefs field on GET /user/me). Note the camelCase keys —
+  // history NotificationType values stay snake_case.
+  type NotificationPreferences = { like: boolean, comment: boolean, groupJoin: boolean, newPost: boolean, moment: boolean }
+
   interface Notification {
     id: number
-    type: 'like' | 'comment' | 'group_join' | 'new_post' | 'moment'
+    type: NotificationType
     isRead: boolean
     photoId: number | null
     commentId: number | null
-    groupId: number | null
+    groupId: number[]
     createdAt: string
     photoUrl: string | null
     actor: {
@@ -107,6 +113,7 @@ declare global {
     name: string
     username: string
     avatarUrl: string | null
+    notificationPrefs: NotificationPreferences | null
   }
 
   interface CollctAccount {

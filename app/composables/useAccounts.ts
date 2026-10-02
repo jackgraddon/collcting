@@ -116,7 +116,7 @@ export function useAccounts() {
 
   async function testConnection(serverUrl: string, token: string): Promise<AccountUser | null> {
     try {
-      const res = await $fetch<{ id: number, name: string, username: string, avatarUrl: string | null }>('/api/user/me', {
+      const res = await $fetch<{ id: number, name: string, username: string, avatarUrl: string | null, notificationPrefs?: NotificationPreferences | null }>('/api/user/me', {
         baseURL: serverUrl,
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -124,7 +124,8 @@ export function useAccounts() {
         id: res.id,
         name: res.name,
         username: res.username,
-        avatarUrl: res.avatarUrl
+        avatarUrl: res.avatarUrl,
+        notificationPrefs: res.notificationPrefs ?? null
       }
     } catch {
       return null

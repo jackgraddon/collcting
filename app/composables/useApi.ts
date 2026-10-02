@@ -199,6 +199,14 @@ export function useApi() {
       }>('/api/notifications/test', { method: 'post' })
     },
 
+    // Per-type push preferences (PATCH /user/notification-prefs). A disabled
+    // type suppresses both push and in-app entries for new notifications.
+    // Absent on older servers — callers must hide preference UI when the
+    // stored account has no notificationPrefs.
+    async updateNotificationPreferences(prefs: Partial<NotificationPreferences>) {
+      return $api<{ success: boolean, notificationPrefs: NotificationPreferences }>('/api/user/notification-prefs', { method: 'patch', body: prefs })
+    },
+
     // Version (health check)
     async getVersion() {
       return $api<{ version: string }>('/api/version')

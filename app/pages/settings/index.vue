@@ -29,15 +29,20 @@ try {
   // ignore
 }
 
-// Self-heal stale cached avatar (e.g. uploaded elsewhere or lost before we
-// persisted it) — the server is source of truth for it. Deliberately NOT
-// name/username: those are form-owned, and overwriting them here races with
-// an in-flight save, resurrecting stale values after a successful update.
+// Self-heal stale cached avatar and notification prefs (e.g. changed
+// elsewhere or lost before we persisted them) — the server is source of
+// truth for both. Deliberately NOT name/username: those are form-owned, and
+// overwriting them here races with an in-flight save, resurrecting stale
+// values after a successful update.
 try {
   const me = await api.getMe()
   if (activeAccount.value?.user) {
     updateAccount(activeAccount.value.id, {
-      user: { ...activeAccount.value.user, avatarUrl: me.avatarUrl }
+      user: {
+        ...activeAccount.value.user,
+        avatarUrl: me.avatarUrl,
+        notificationPrefs: me.notificationPrefs ?? activeAccount.value.user.notificationPrefs
+      }
     })
   }
 } catch {
@@ -308,6 +313,53 @@ async function copyDiagnostics() {
   }
 }
 
+const PREF_ROWS: { type: keyof NotificationPreferences, label: string, description: string, icon: string }[] = [
+  { type: 'like', label: 'Likes', description: 'Someone likes your photo', icon: 'i-lucide-heart' },
+  { type: 'comment', label: 'Comments', description: 'Someone comments on your photo', icon: 'i-lucide-message-circle' },
+  { type: 'groupJoin', label: 'Group joins', description: 'Someone joins your group', icon: 'i-solar-users-group-rounded-linear' },
+  { type: 'newPost', label: 'New posts', description: 'Someone posts a new photo', icon: 'i-lucide-image' },
+  { type: 'moment', label: 'Moments', description: 'Daily moment window opens', icon: 'i-lucide-aperture' }
+]
+
+// Sourced from the stored account (populated at login, refreshed by the
+// settings-mount getMe below). Null on older servers without the
+// notificationPrefs field — the section stays hidden there.
+const prefs = computed(() => activeAccount.value?.user?.notificationPrefs ?? null)
+const prefsSupported = ref(true)
+const savingPrefs = ref<keyof NotificationPreferences | null>(null)
+
+async function onTogglePref(type: keyof NotificationPreferences, on: boolean) {
+  if (!prefs.value || savingPrefs.value || !activeAccount.value) return
+  const prev = prefs.value[type]
+  updateAccount(activeAccount.value.id, {
+    user: { ...activeAccount.value.user!, notificationPrefs: { ...prefs.value, [type]: on } }
+  })
+  savingPrefs.value = type
+  try {
+    const result = await api.updateNotificationPreferences({ [type]: on } as Partial<NotificationPreferences>)
+    if (activeAccount.value?.user) {
+      updateAccount(activeAccount.value.id, {
+        user: { ...activeAccount.value.user, notificationPrefs: result.notificationPrefs }
+      })
+    }
+  } catch (e: unknown) {
+    const err = e as { statusCode?: number }
+    if (err.statusCode === 404) {
+      // Older server without the endpoint — hide the section.
+      prefsSupported.value = false
+    } else {
+      if (activeAccount.value?.user && prefs.value) {
+        updateAccount(activeAccount.value.id, {
+          user: { ...activeAccount.value.user, notificationPrefs: { ...prefs.value, [type]: prev } }
+        })
+      }
+      toast.add({ title: 'Could not update preference', color: 'error', icon: 'solar:danger-triangle-bold' })
+    }
+  } finally {
+    savingPrefs.value = null
+  }
+}
+
 const tabs = computed(() => [
   {
     slot: 'account',
@@ -468,6 +520,43 @@ const tabs = computed(() => [
             >
               Retry
             </UButton>
+          </div>
+
+          <div
+            v-if="notifStatus === 'on' && prefs && prefsSupported"
+            class="rounded-lg border border-default divide-y divide-default"
+          >
+            <div class="px-3 pt-3 pb-1">
+              <p class="text-sm font-medium">
+                Notify me about
+              </p>
+              <p class="text-xs text-muted mt-0.5">
+                Muted types won't notify you or appear in your history.
+              </p>
+            </div>
+            <div
+              v-for="row in PREF_ROWS"
+              :key="row.type"
+              class="flex items-center gap-3 px-3 py-2.5"
+            >
+              <UIcon
+                :name="row.icon"
+                class="w-4 h-4 text-muted shrink-0"
+              />
+              <div class="flex-1 min-w-0">
+                <p class="text-sm">
+                  {{ row.label }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ row.description }}
+                </p>
+              </div>
+              <USwitch
+                :model-value="prefs[row.type]"
+                :loading="savingPrefs === row.type"
+                @update:model-value="(v: boolean) => onTogglePref(row.type, v)"
+              />
+            </div>
           </div>
 
           <div

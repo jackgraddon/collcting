@@ -127,7 +127,10 @@ function notificationText(n: Notification): string {
 function notificationLink(n: Notification): string {
   if (n.type === 'moment') return '/?moment=capture'
   if (n.photoId) return `/post/${n.photoId}`
-  if (n.groupId) return `/groups/${n.groupId}`
+  // groupId is always an array (possibly empty) — [] is truthy, so resolve
+  // the first element explicitly instead of relying on truthiness.
+  const groupId = Array.isArray(n.groupId) ? n.groupId[0] : n.groupId
+  if (groupId != null) return `/groups/${groupId}`
   return '/'
 }
 
